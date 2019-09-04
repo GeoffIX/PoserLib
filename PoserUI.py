@@ -34,9 +34,11 @@
 #					rotation parameters from the Light parent of depth cameras. 
 # v1.13	20190402	Added UpdateCustomData() method to manage custom data for figures and actors by maintaining a
 #					delimited list of customData keys as a separate CustomDataListKey value.
+# v1.14	20190904	Added otherSuffix dict to complement sameSuffix by providing a map of any poser file suffix to
+#					its opposite compression version to speed inexact search for files.
 ###############################################################################################
 
-PoserUserInterfaceVersion = '1.13'
+PoserUserInterfaceVersion = '1.14'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
@@ -238,6 +240,17 @@ sameSuffix = { 	'.cm2': '.cm2', '.cmz': '.cm2', \
 				'.obj': '.obj', '.obz': '.obj', \
 				'.pz2': '.pz2', '.p2z': '.pz2', \
 				'.pz3': '.pz3', '.pzz': '.pz3' } # Map any poser file suffix to its uncompressed equivalent
+otherSuffix = { '.cm2': '.cmz', '.cmz': '.cm2', \
+				'.cr2': '.crz', '.crz': '.cr2', \
+				'.fc2': '.fcz', '.fcz': '.fc2', \
+				'.hd2': '.hdz', '.hdz': '.hd2', \
+				'.hr2': '.hrz', '.hrz': '.hr2', \
+				'.lt2': '.ltz', '.ltz': '.lt2', \
+				'.mc6': '.mcz', '.mcz': '.mc6', \
+				'.mt5': '.mz5', '.mz5': '.mt5', \
+				'.obj': '.obz', '.obz': '.obj', \
+				'.pz2': '.p2z', '.p2z': '.pz2', \
+				'.pz3': '.pzz', '.pzz': '.pz3' } # Map any poser file suffix to its opposite compression equivalent
 CameraSuffix = 0
 FaceSuffix = 1
 FigureSuffix = 2
