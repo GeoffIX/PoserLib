@@ -189,7 +189,7 @@ class Preferences:
 		else:
 			prefFileName = os.path.join( self.path, self.name )
 		if debug:
-			print "Prefs Path: {}\nPrefs File: {}".format( self.path, prefFileName )
+			print( "Prefs Path: {}\nPrefs File: {}".format( self.path, prefFileName ) )
 		
 		# Open preference file
 		try:
