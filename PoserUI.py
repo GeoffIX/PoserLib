@@ -1,5 +1,5 @@
 # PoserUI.py
-# (c) 2014-2017 GeoffIX (Geoff Hicks)
+# (c) 2014-2019 GeoffIX (Geoff Hicks)
 # 
 # This module implements Poser User Interface features currently missing from PoserPython.
 #
@@ -36,9 +36,12 @@
 #					delimited list of customData keys as a separate CustomDataListKey value.
 # v1.14	20190904	Added otherSuffix dict to complement sameSuffix by providing a map of any poser file suffix to
 #					its opposite compression version to speed inexact search for files.
+# v1.15	20191004	Incorporate Snarlygribbly's (Royston Harwood) fix for Poser 11.2 poser.AppVersion() format change 
+#					which previously split the full version string into a.b.c .build, but is now simply a.b.build. 
+#					The fix returns a.b.0.build
 ###############################################################################################
 
-PoserUserInterfaceVersion = '1.14'
+PoserUserInterfaceVersion = '1.15'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
@@ -726,6 +729,21 @@ def UpdateCustomData( theObject, theData ):
 		customKeys = CustomDataKeyDelimiter.join( keys )
 		theObject.SetCustomData( CustomDataListKey, customKeys, 0, 0 ) # Save lookup for customData Keys
 
+
+# Override Poser 11.2 AppVersion() method format change
+if len( poser.AppVersion().split( '.' ) ) < 4:
+	oldav = poser.AppVersion
+	newav = poser.AppVersion()
+
+	def AppV():
+		global newav
+	
+		v = newav.split( '.' )
+		v[ 1 ] = v[ 1 ].strip()
+		v[ 2 ] = str( int( v[ 2 ] ) + 40000 )
+		return '{}.{}.0.{}'.format( v[ 0 ], v[ 1 ], v[ 2 ] )
+
+	poser.AppVersion = AppV
 
 # Investigate the current poser environment
 TestMethods()

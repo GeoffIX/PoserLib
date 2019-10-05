@@ -17,10 +17,12 @@
 # v1.4	20190911	Protect path operations from empty, uninitialised preferences.
 #					Initial Python 3 compatibility replacement of print statement with function.
 #					Account for print statements with trailing comma by print( "...", end = " " ) to suppress newline
+# v1.5	20190912	Allow access to preference files outside Poser's preference hierarchy.
+#					Added path optional parameter to __init__() to specify external preference location
 ###############################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = "1.4"
+poserPrefsVersion = "1.5"
 debug = False
 
 POSER_PREFS_VERSION = "POSERPREFS_VERSION"
@@ -41,14 +43,16 @@ import poser
 class Preferences:
 	'Poser Python standard preference file handling'
 	
-	def __init__(self, name=None, defaultLibrary=None):
+	def __init__(self, name=None, defaultLibrary=None, path=None):
 		"""
 		Define preference file path attributes.
 		name			: The name of the preference file. E.g. 'SaveAnimSet Prefs'
 						: Defaults to 'Poser Prefs' if unspecified and Save() method will be disabled.
 		defaultLibrary	: e.g. 'Pose' ==> Runtime:Libraries:Pose
+		path			: The location of the preference file. 
+						: Defaults to the location of Poser's preferences if unspecified.
+						: path kwarg will only be used if name kwarg is defined.
 		
-		path			: List of os directory path elements
 		file			: Preference file handle
 		preferences		: An OrderedDict of preference keys and values. Initialise the keys before calling Load()
 						: Preference keys always saved are POSERPREFS_VERSION and POSER_VERSION
@@ -59,6 +63,8 @@ class Preferences:
 			self.path = poser.PrefsLocation()
 		except:
 			self.path = LegacyPrefsLocation()
+		if name and path and os.path.isdir( path ):
+			self.path = path
 		self.name = name
 		self.library = defaultLibrary
 		self.file = None
@@ -95,7 +101,10 @@ class Preferences:
 		Poser application and python scripts and modules. Do this before saving preferences to override version
 		info loaded from an old preference file .
 		"""
-		self.preferences[ POSER_VERSION ] = VERSION_FORMAT.format( float( poser.Version() ) )
+		try:
+			self.preferences[ POSER_VERSION ] = VERSION_FORMAT.format( float( poser.AppVersion() ) )
+		except:
+			self.preferences[ POSER_VERSION ] = VERSION_FORMAT.format( float( poser.Version() ) )
 		self.preferences[ POSER_PREFS_VERSION ] = poserPrefsVersion
 		self.preferences[ versionKey ] = versionValue
 	
@@ -197,7 +206,11 @@ class Preferences:
 		except: # No prefFile, use Poser Prefs
 			if debug:
 				print( "No '{}' file found,".format( prefFileName ) )
-			prefFileName = os.path.join( self.path, POSER_PREFS )
+			try: # Can't guarantee ability to use self.path, for Poser Prefs, if path specified in __init__()
+				path = poser.PrefsLocation()
+			except:
+				path = LegacyPrefsLocation()
+			prefFileName = os.path.join( path, POSER_PREFS )
 			if debug:
 				print( "loading '{}'.".format( prefFileName ) )
 			try:
