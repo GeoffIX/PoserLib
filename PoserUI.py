@@ -39,9 +39,11 @@
 # v1.15	20191004	Incorporate Snarlygribbly's (Royston Harwood) fix for Poser 11.2 poser.AppVersion() format change 
 #					which previously split the full version string into a.b.c .build, but is now simply a.b.build. 
 #					The fix returns a.b.0.build
+# v1.16	20191025	Added GetCustomDataKeys(), SetCustomDataKeys() and AddCustomData() methods to simplify management 
+#					of CustomData by recording the keys used.
 ###############################################################################################
 
-PoserUserInterfaceVersion = '1.15'
+PoserUserInterfaceVersion = '1.16'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
@@ -694,6 +696,54 @@ def ListAllCustomData( theObject=None ):
 						data = figure.CustomData( key )
 						print '{}, {} "{}"'.format( figure.Name(), key, data )
 
+def GetCustomDataKeys( theObject ):
+	"""
+	Given theObject, which may refer to either a figure or an actor, return a list of keys for which customData exists.
+	
+	theObject	the entity (figure or actor) whose list of customData keys are to be returned.
+	"""
+	global CustomDataListKey
+	global CustomDataKeyDelimiter
+	
+	customKeys = theObject.CustomData( CustomDataListKey )
+	keys = []
+	if customKeys is not None: # Extract existing customData Keys value into keys list
+		keys = customKeys.split( CustomDataKeyDelimiter )
+	return keys
+
+def SetCustomDataKeys( theObject, keys ):
+	"""
+	Given theObject, which may refer to either a figure or an actor, set the CustomDataListKey customData to the 
+	concatenated, delimited list of keys specified.
+	
+	theObject	the entity (figure or actor) whose list of customData keys is to be set.
+	keys		the list of keys to be concatenated and delimited then saved to CustomDataListKey.
+	"""
+	global CustomDataListKey
+	global CustomDataKeyDelimiter
+	
+	if len( keys ) > 0:
+		customKeys = CustomDataKeyDelimiter.join( keys )
+		theObject.SetCustomData( CustomDataListKey, customKeys, 0, 0 ) # Save lookup for customData Keys
+
+def AddCustomData( theObject, key, value=None, storeWithPoses=0, storeWithMaterials=0 ):
+	"""
+	Given theObject, which may refer to either a figure or an actor, set its customData as specified.
+	The key will be included in the CustomDataListKey value, delimited by CustomDataKeyDelimiter: ';'
+	
+	theObject			the entity (figure or actor) whose customData is to be set.
+	key					the key whose customData value is to be set.
+	value				the customData value associated with key.
+	storeWithPoses		flag 0 or 1 indicating whether Poser will save the customData with poses.
+	storeWithMaterials	flag 0 or 1 indicating whether Poser will save the customData with material poses.
+	"""	
+	keys = GetCustomDataKeys( theObject )
+	if theObject and key:
+		if key not in keys:
+			keys.append( key )
+			SetCustomDataKeys( theObject, keys ) # Record the newly added key
+		theObject.SetCustomData( key, value, storeWithPoses, storeWithMaterials )
+	
 def UpdateCustomData( theObject, theData ):
 	"""
 	Given theObject, which may refer to either a figure or an actor, update its customData with theData.
@@ -712,10 +762,7 @@ def UpdateCustomData( theObject, theData ):
 	global CustomDataPoseNameFrameFmt
 	
 	if len( theData ) > 0: # Need to maintain customData Keys list
-		customKeys = theObject.CustomData( CustomDataListKey )
-		keys = []
-		if customKeys is not None: # Extract existing customData Keys value into keys list
-			keys = customKeys.split( CustomDataKeyDelimiter )
+		keys = GetCustomDataKeys( theObject )
 		for (key, data) in theData.iteritems():
 			if key not in keys: # Avoid duplicating existing keys
 				keys.append( key )
@@ -726,8 +773,7 @@ def UpdateCustomData( theObject, theData ):
 				if framekey not in keys:
 					keys.append( framekey )
 				theObject.SetCustomData( framekey, data.value, data.storeWithPoses, data.storeWithMaterials )
-		customKeys = CustomDataKeyDelimiter.join( keys )
-		theObject.SetCustomData( CustomDataListKey, customKeys, 0, 0 ) # Save lookup for customData Keys
+		SetCustomDataKeys( theObject, keys )
 
 
 # Override Poser 11.2 AppVersion() method format change
