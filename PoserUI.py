@@ -41,9 +41,10 @@
 #					The fix returns a.b.0.build
 # v1.16	20191025	Added GetCustomDataKeys(), SetCustomDataKeys() and AddCustomData() methods to simplify management 
 #					of CustomData by recording the keys used.
+# v1.17	20191206	Added symmetric LoadMethod dispatcher dict for loading library files based on file extension.
 ###############################################################################################
 
-PoserUserInterfaceVersion = '1.16'
+PoserUserInterfaceVersion = '1.17'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
@@ -265,6 +266,15 @@ LightSuffix = 5
 PoseSuffix = 6
 PropSuffix = 7
 SceneSuffix = 8
+LoadMethod = {	uncompressedSuffixes[ CameraSuffix	 ] : poser.Scene().LoadLibraryCamera, \
+				uncompressedSuffixes[ FaceSuffix	 ] : poser.Scene().LoadLibraryFace, \
+				uncompressedSuffixes[ FigureSuffix	 ] : poser.Scene().LoadLibraryFigure, \
+				uncompressedSuffixes[ HairSuffix	 ] : poser.Scene().LoadLibraryHair, \
+				uncompressedSuffixes[ HandSuffix	 ] : poser.Scene().LoadLibraryHand, \
+				uncompressedSuffixes[ LightSuffix	 ] : poser.Scene().LoadLibraryLight, \
+				uncompressedSuffixes[ PoseSuffix	 ] : poser.Scene().LoadLibraryPose, \
+				uncompressedSuffixes[ PropSuffix	 ] : poser.Scene().LoadLibraryProp, \
+				uncompressedSuffixes[ SceneSuffix	 ] : poser.OpenDocument }
 SaveMethod = {	uncompressedSuffixes[ CameraSuffix	 ] : poser.Scene().SaveLibraryCamera, \
 				uncompressedSuffixes[ FaceSuffix	 ] : poser.Scene().SaveLibraryFace, \
 				uncompressedSuffixes[ FigureSuffix	 ] : poser.Scene().SaveLibraryFigure, \
