@@ -1,5 +1,5 @@
 # PoserUI.py
-# (c) 2014-2019 GeoffIX (Geoff Hicks)
+# (c) 2014-2020 GeoffIX (Geoff Hicks)
 # 
 # This module implements Poser User Interface features currently missing from PoserPython.
 #
@@ -42,9 +42,10 @@
 # v1.16	20191025	Added GetCustomDataKeys(), SetCustomDataKeys() and AddCustomData() methods to simplify management 
 #					of CustomData by recording the keys used.
 # v1.17	20191206	Added symmetric LoadMethod dispatcher dict for loading library files based on file extension.
+# v1.18	20201019	Update AppVersion() method override to account for Poser 12, giving build numbers > 41000.
 ###############################################################################################
 
-PoserUserInterfaceVersion = '1.17'
+PoserUserInterfaceVersion = '1.18'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
@@ -796,7 +797,7 @@ if len( poser.AppVersion().split( '.' ) ) < 4:
 	
 		v = newav.split( '.' )
 		v[ 1 ] = v[ 1 ].strip()
-		v[ 2 ] = str( int( v[ 2 ] ) + 40000 )
+		v[ 2 ] = str( int( v[ 2 ] ) + 29000 + ( int( v[ 0 ] ) * 1000 ) ) # v11 -> 40000, v12 -> 41000
 		return '{}.{}.0.{}'.format( v[ 0 ], v[ 1 ], v[ 2 ] )
 
 	poser.AppVersion = AppV
