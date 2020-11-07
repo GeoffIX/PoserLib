@@ -10,12 +10,14 @@ libraries as used internally by Poser Pro 2014 and thus must be installed manual
 also that the quadratic spline interpolation (3 points) is not an accurate replication of Poser's interpolation which is
 currently undocumented.
 
-This version (1.9) of PoserDialValue no longer relies on the installation of additional modules outside PoserLib for its
+This version (2.0) of PoserDialValue no longer relies on the installation of additional modules outside PoserLib for its
 functions, instead, relying on the current built-in UnaffectedValue() method for single frames, and the removal and
 restoration of value operations to reveal the underlying dial values for a range of frames or animation sequence. One
 potential drawback of this is that Python Callback routines are a valid valueOperation type. Unfortunately, so far in
-Poser 11.2, there is no mechanism allowing the restoration of such a valueOperation, since the associated python script
+Poser 11.3, there is no mechanism allowing the restoration of such a valueOperation, since the associated python script
 is not exposed to the Python API.
+
+Print statements have been replaced with function calls for Python 3 compatibility in Poser 12.
 
 PoserDialValue Constants:
 

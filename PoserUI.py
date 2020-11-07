@@ -43,16 +43,21 @@
 #					of CustomData by recording the keys used.
 # v1.17	20191206	Added symmetric LoadMethod dispatcher dict for loading library files based on file extension.
 # v1.18	20201019	Update AppVersion() method override to account for Poser 12, giving build numbers > 41000.
-###############################################################################################
+# v2.0	20201107	Replace print statement with function call for Python3 compatibility in Poser12.
+#					Python3 raise only takes a single Exception instance or class with explicit parameters.
+#					Explicitly import PoserPrefs from PoserLib.
+########################################################################################################################
+from __future__ import print_function
 
-PoserUserInterfaceVersion = '1.18'
+PoserUserInterfaceVersion = '2.0'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
 import os
 import re
 import poser
-import PoserPrefs
+from PoserLib import PoserPrefs
+#from importlib import reload
 #reload(PoserPrefs)
 from collections import OrderedDict, namedtuple
 
@@ -310,7 +315,7 @@ def TestMethods( theParm=None ):
 				parm = actor.CreateValueParameter( TestParmName )
 				RemoveTestParm = True
 			else: # We had some other problem, so Crash and burn - major problems with the environment
-				raise Exception, 'Actor "{}" has no parameters!'.format( actor.InternalName() )
+				raise Exception( 'Actor "{}" has no parameters!'.format( actor.InternalName() ) )
 	else:
 		parm = theParm
 		actor = theParm.Actor() # We need an actor for the IsControlProp method test
@@ -402,8 +407,8 @@ def GetCameraParm( theCamera, theParmCode, inherit=False ):
 		if inherit and GetCameraModel( theCamera ) == 2: # Depth camera, so try inherited parameter
 			theParm = theCamera.Parent().ParameterByCode( theParmCode )
 		if theParm is None:
-			print 'Selected Camera', theCamera.Name(), 'cannot be aimed.'
-			raise Exception,  'CameraError: {} missing required parameter'.format( theCamera.Name() )
+			print( 'Selected Camera', theCamera.Name(), 'cannot be aimed.' )
+			raise Exception(  'CameraError: {} missing required parameter'.format( theCamera.Name() ) )
 	else: # Test availability of poser python methods
 		TestMethods( theParm )
 	return theParm
@@ -602,6 +607,23 @@ def GetAnimSetActorParms( theAnimSetName ):
 		animSetActors = None # Indicate no such animSet in scene
 	return animSetActors
 
+def GetPoseNameFrameKey( theFrame=None ):
+	"""
+	Return the customData 'PoseName#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'PoseName#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+	global CustomDataFrameDelimiter
+	global CustomDataPoseNameKey
+	global CustomDataPoseNameFrameFmt
+	
+	if theFrame is None:
+		theFrame = poser.Scene().Frame()
+	return CustomDataPoseNameFrameFmt.format( CustomDataPoseNameKey, CustomDataFrameDelimiter, theFrame )
+
+
 def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
 																			stripExt=False, useActor=False ):
 	"""
@@ -621,15 +643,11 @@ def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast
 	"""
 	global CustomDataListKey
 	global CustomDataKeyDelimiter
-	global CustomDataFrameDelimiter
 	global CustomDataPoseNameKey
-	global CustomDataPoseNameFrameFmt
 	
 	poseName = None
 	keyFound = None
-	if theFrame is None:
-		theFrame = poser.Scene().Frame()
-	framekey = CustomDataPoseNameFrameFmt.format( CustomDataPoseNameKey, CustomDataFrameDelimiter, theFrame )
+	framekey = GetPoseNameFrameKey( theFrame )
 	if useActor: # Try theActor PoseName before testing theFigure
 		theObject = theActor
 	elif theFigure is not None: # Figure PoseName will override individual actor PoseName
@@ -686,7 +704,7 @@ def ListAllCustomData( theObject=None ):
 			keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
 			for key in keyList:
 				data = theObject.CustomData( key )
-				print '{}, {} "{}"'.format( theObject.Name(), key, data )
+				print( '{}, "{}" "{}"'.format( theObject.Name(), key, data ) )
 	else:
 		scene = poser.Scene()
 		for actor in scene.Actors(): # This parses all unparented actors in the scene as well as actors in figures.
@@ -696,7 +714,7 @@ def ListAllCustomData( theObject=None ):
 				keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
 				for key in keyList:
 					data = actor.CustomData( key )
-					print '{}, {} "{}"'.format( actor.Name(), key, data )
+					print( '{}, "{}" "{}"'.format( actor.Name(), key, data ) )
 		else:
 			for figure in scene.Figures():
 				customKeys = figure.CustomData( CustomDataListKey )
@@ -705,7 +723,7 @@ def ListAllCustomData( theObject=None ):
 					keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
 					for key in keyList:
 						data = figure.CustomData( key )
-						print '{}, {} "{}"'.format( figure.Name(), key, data )
+						print( '{}, "{}" "{}"'.format( figure.Name(), key, data ) )
 
 def GetCustomDataKeys( theObject ):
 	"""
@@ -793,6 +811,14 @@ if len( poser.AppVersion().split( '.' ) ) < 4:
 	newav = poser.AppVersion()
 
 	def AppV():
+		"""
+		For Poser versions prior to 11.2, poser.AppVersion() returns 'a.b.c .build' as the version string.
+		For Poser versions after 11.3, poser.AppVersion() returns 'a.b.build' where the build sequence restarted at zero.
+		PoserUI replaces poser.AppVersion() with a new variant, returning 'a.b.0.build' and adding offsets of 40000 for
+		Poser 11.3 and 41000 for Poser 12 to the build number to maintain its sequence for scripts which make build value
+		comparison.
+		The original poser.AppVersion() function is available as PoserUI.oldav(), if required.
+		"""
 		global newav
 	
 		v = newav.split( '.' )
@@ -820,9 +846,9 @@ UnitScaleType = int( prefs.preferences[ UNIT_SCALE_TYPE ] )
 UseCompression = int( prefs.preferences[ USE_COMPRESSION ] )
 if debug:
 	for pref in prefs.preferences.keys():
-		print '   {} : {}'.format( pref, prefs.preferences[ pref ] )
-	print 'UnitScaleFactor = {}'.format( UnitScaleFactor )
-	print 'UnitScaleType = {}'.format( UnitTypeName[ UnitScaleType ] )
-	print 'UseCompression = {}'.format( UseCompression )
+		print( '   {} : {}'.format( pref, prefs.preferences[ pref ] ) )
+	print( 'UnitScaleFactor = {}'.format( UnitScaleFactor ) )
+	print( 'UnitScaleType = {}'.format( UnitTypeName[ UnitScaleType ] ) )
+	print( 'UseCompression = {}'.format( UseCompression ) )
 
 ### END ###

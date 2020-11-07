@@ -1,5 +1,5 @@
 # PoserPrefs.py
-# (c) 2014-2018 GeoffIX (Geoff Hicks)
+# (c) 2014-2020 an0malaus (Geoff Hicks/GeoffIX)
 #
 # This module provides standard handling for Poser Python Script preference files
 # If a specified preference file does not exist at the normal location of Poser's own preferences,
@@ -19,10 +19,12 @@
 #					Account for print statements with trailing comma by print( "...", end = " " ) to suppress newline
 # v1.5	20190912	Allow access to preference files outside Poser's preference hierarchy.
 #					Added path optional parameter to __init__() to specify external preference location
-###############################################################################################
+# v2.0	20201107	Replace print statement with function for Python 3 compatibility in Poser 12.
+#					Python3 has no basestring type. Use str instead.
+########################################################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = "1.5"
+poserPrefsVersion = '2.0'
 debug = False
 
 POSER_PREFS_VERSION = "POSERPREFS_VERSION"
@@ -36,9 +38,17 @@ VERSION_FORMAT = '{:0g}'
 LIBRARY_PATH = [ "Runtime", "Libraries" ]
 
 import os
-import string
 import collections
 import poser
+
+try: # For Python 2.7 maketrans
+	from string import maketrans
+except: # Python 3 maketrans is static attribute of str
+	pass
+try:
+	basestring
+except NameError:
+	basestring = str
 
 class Preferences:
 	'Poser Python standard preference file handling'
@@ -80,7 +90,7 @@ class Preferences:
 		path = self.preferences[ preferenceKey ]
 		if debug:
 			print( "Testing hierarchy of {} preference: '{}'".format ( preferenceKey, path ) )
-		if string.find(string.lower(path), "runtime") < 0 or string.find(string.lower(path), "libraries") < 0:
+		if path.lower().find("runtime") < 0 or path.lower().find("libraries") < 0:
 			if debug:
 				print( "{} preference: '{}' is outside Runtime Libraries,".format( preferenceKey, path ), end = " " )
 			try:
@@ -124,7 +134,7 @@ class Preferences:
 				if isinstance( self.preferences[ pref ], basestring ): # Double quote strings
 					self.file.write( PATH_FORMAT.format( pref, self.preferences[ pref ] ) )
 					if debug:
-						print( "basestring preference {} : {}".format( pref, self.preferences[ pref ] ) )
+						print( "string preference {} : {}".format( pref, self.preferences[ pref ] ) )
 				else:
 					self.file.write( GENERAL_FORMAT.format( pref, self.preferences[ pref ] ) )
 					if debug:
@@ -153,8 +163,8 @@ class Preferences:
 			print( "Poser Directory: ", poserDir )
 			print( "Poser Application: ", poserApp )
 			print( "Poser Version: ", ver )
-		verIndex = string.rfind(ver, '.')
-		proIndex = string.rfind(poserApp, 'Pro')
+		verIndex = ver.rfind('.')
+		proIndex = poserApp.rfind('Pro')
 		if debug:
 			print( "Pro Index: ", proIndex )
 		if ver[:verIndex] == "9":
@@ -220,7 +230,10 @@ class Preferences:
 					print( "No '{}' file found,".format(  prefFileName ) )
 		if self.file != None:
 			# Read preferences
-			trans = string.maketrans(os.path.sep, os.path.sep)
+			try: # Python 3 syntax
+				trans = str.maketrans(os.path.sep, os.path.sep, '"') # maketrans(find, replace, delete)
+			except:
+				trans = maketrans(os.path.sep, os.path.sep) # maketrans(find, replace)
 			while 1:
 				lines = self.file.readlines(100000)
 				if not lines:
@@ -231,7 +244,10 @@ class Preferences:
 					part = line.split() # Space delimited
 					if loadExtra or part[0] in initialKeys:
 						prefValue = ' '.join(part[1:]) # First split part is key, the rest is value
-						self.preferences[ part[0] ] = prefValue.translate(trans, '"')
+						try: # Python 2.7 syntax includes delete, but will fail in Python 3
+							self.preferences[ part[0] ] = prefValue.translate(trans, '"')
+						except: # Python 3 syntax
+							self.preferences[ part[0] ] = prefValue.translate(trans)
 			self.file.close()
 			
 #"""

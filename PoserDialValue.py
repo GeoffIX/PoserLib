@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*- 
 # PoserDialValue.py
-# (c) 2014,2105 GeoffIX (Geoff Hicks)
+# (c) 2014-2020 an0malaus (Geoff Hicks/GeoffIX)
 # 
 # This module provides a function to determine (as accurately as possible) the actual dial setting
 # of a Poser parameter value. Initial attempts to reverse the affects of ERC influence included in
@@ -83,9 +84,12 @@
 #					Fix RestoreValueOperations() which seems to be using a 1 based KeyValueOp index rather than 0.
 #					Fix ListValueOperations() which also incorrectly uses a 1 base GetKey() index.
 #					Fix LogValueOperations() which also incorrectly uses a 1 base GetKey() index.
-###############################################################################################
+# v2.0	20201103	Replace print statement with function for Python 3 compatibility in Poser 12.
+#					Python3 raise only takes a single Exception instance or class with explicit parameters.
+########################################################################################################################
+from __future__ import print_function
 
-poserDialValueVersion = "1.9"
+poserDialValueVersion = "2.0"
 POSER_DIALVALUE_VERSION = "POSERDIALVALUE_VERSION"
 debug = False
 remove = True
@@ -127,7 +131,7 @@ def ApplyParmLimits( theParm, theValue ):
 def Plural( theCount ):
 	"""
 	This method returns a string containing the English plural suffix appropriate for the specified integer.
-	E.G.	>>> print "{} hop{}, {} skip{} and {} jump{}".format( 0, Plural(0), 1, Plural(1), 2, Plural(2) )
+	E.G.	>>> print( "{} hop{}, {} skip{} and {} jump{}".format( 0, Plural(0), 1, Plural(1), 2, Plural(2) ) )
 	E.G.	>>> 0 hops, 1 skip and 2 jumps
 	
 	theCount	: the integer whose English plural suffix ( "" or "s" ) is to be returned.
@@ -159,37 +163,37 @@ def ListValueOperations(theParm):
 	theParm		: the parameter whose value operations are to be printed.
 	"""
 	try:
-		print "{}DialValue: {}, {} has {:d} value operation{}; Value() = {:0g} Unaffected Value() = {:0g}".format( \
+		print( "{}DialValue: {}, {} has {:d} value operation{}; Value() = {:0g} Unaffected Value() = {:0g}".format( \
 							indent*1, \
 							theParm.Actor().InternalName(), theParm.InternalName(), theParm.NumValueOperations(), \
-							Plural( theParm.NumValueOperations() ), theParm.Value(), theParm.UnaffectedValue()) 
+							Plural( theParm.NumValueOperations() ), theParm.Value(), theParm.UnaffectedValue())  )
 	except:
-		print "{}DialValue: {}, {} has {:d} value operation{}; Value() = {:0g}".format( indent*1, \
+		print( "{}DialValue: {}, {} has {:d} value operation{}; Value() = {:0g}".format( indent*1, \
 							theParm.Actor().InternalName(), theParm.InternalName(), theParm.NumValueOperations(), \
-							Plural( theParm.NumValueOperations() ), theParm.Value()) 
+							Plural( theParm.NumValueOperations() ), theParm.Value())  )
 	if theParm.NumValueOperations() > 0:
 		for theValOp in theParm.ValueOperations():
 			if theValOp.Type() == poser.kValueOpTypeCodePYTHONCALLBACK:
-				print "{}Python CallBack Value Operation".format( indent*2 )
+				print( "{}Python CallBack Value Operation".format( indent*2 ) )
 			else:
 				srcParm = theValOp.SourceParameter()
 				if srcParm:
-					print "{}{}\n{}{}\n{}{}\n{}{}".format( indent*2, valOpTypeNames[ theValOp.Type() ], \
+					print( "{}{}\n{}{}\n{}{}\n{}{}".format( indent*2, valOpTypeNames[ theValOp.Type() ], \
 									indent*3, FigureName( theValOp.SourceParameter().Actor().ItsFigure() ), \
 									indent*3, theValOp.SourceParameter().Actor().InternalName(), \
-									indent*3, theValOp.SourceParameter().InternalName() )
+									indent*3, theValOp.SourceParameter().InternalName() ) )
 					if theValOp.Type() == poser.kValueOpTypeCodeDELTAADD:
-						print "{}deltaAddDelta {:0.6f}".format( indent*2, theValOp.Delta() )
+						print( "{}deltaAddDelta {:0.6f}".format( indent*2, theValOp.Delta() ) )
 					elif theValOp.Type() == poser.kValueOpTypeCodeKEY:
-						print "{}beginValueKeys".format( indent*3 )
+						print( "{}beginValueKeys".format( indent*3 ) )
 						#for theKeyIndex in range(1, theValOp.NumKeys() + 1): # Complete BS! index should be 0 based.
 						for theKeyIndex in range( theValOp.NumKeys() ):
 							(theKey, theValue) = theValOp.GetKey( theKeyIndex )
-							print "{}valueKey {:0g} {:0g}".format( indent*4, theKey, theValue )
-						print "{}endValueKeys".format( indent*3 )
+							print( "{}valueKey {:0g} {:0g}".format( indent*4, theKey, theValue ) )
+						print( "{}endValueKeys".format( indent*3 ) )
 				else:
-					print "***WARNING***{}{} SourceParameter is None".format( indent*2, \
-																			valOpTypeNames[ theValOp.Type() ] )
+					print( "***WARNING***{}{} SourceParameter is None".format( indent*2, \
+																			valOpTypeNames[ theValOp.Type() ] ) )
 
 def LogValueOperations(logFile, theParm):
 	"""
@@ -245,15 +249,15 @@ def RemoveValueOperations( theParm ):
 				try: # NOTE: Poser will still crash if deleting a valOp with no source parameter
 					success = theParm.DeleteValueOperation( valOpIndex )
 				except:
-					raise Exception, "PoserError: Failed in {}.DeleteValueOperation( {} )".format( \
-																			theParm.InternalName(), valOpIndex )
+					raise Exception( "PoserError: Failed in {}.DeleteValueOperation( {} )".format( \
+																			theParm.InternalName(), valOpIndex ) )
 				if debug:
-					print "{}Success ({:d}) deleting Value Operation Index {:d}".format( indent*2, \
-																							success, valOpIndex )
+					print( "{}Success ({:d}) deleting Value Operation Index {:d}".format( indent*2, \
+																							success, valOpIndex ) )
 			else: # Should try to Remove corrupted value operation from the list returned and continue
-				raise Exception, "PoserError: {} {} {}.SourceParameter() is None ( {} )".format( \
+				raise Exception( "PoserError: {} {} {}.SourceParameter() is None ( {} )".format( \
 										FigureName( theParm.Actor().ItsFigure() ), theParm.Actor().InternalName(), \
-																				theParm.InternalName(), valOpIndex )
+																				theParm.InternalName(), valOpIndex ) )
 	return theValOps
 
 def RestoreValueOperations( theParm, theValOps ):
@@ -267,7 +271,7 @@ def RestoreValueOperations( theParm, theValOps ):
 		for theValOp in theValOps:
 			if theValOp.Type() == poser.kValueOpTypeCodePYTHONCALLBACK: # Ignore python callbacks
 				if debug:
-					print "{}Existing Python CallBack ignored.".format( indent*1 )
+					print( "{}Existing Python CallBack ignored.".format( indent*1 ) )
 			else:
 				newValOp = theParm.AddValueOperation( theValOp.Type(), theValOp.SourceParameter() )
 				if theValOp.Type() == poser.kValueOpTypeCodeDELTAADD:
@@ -300,15 +304,15 @@ def DialValue( theParm ):
 		if remove: # Delete all non-Python ValueOperations, record dial value then re-create ValueOperations.
 			theValOps = RemoveValueOperations( theParm )
 			if debug:
-				print "{}Removed existing Value Operations. Value() = {:0g}".format( indent*1, theParm.Value() )
+				print( "{}Removed existing Value Operations. Value() = {:0g}".format( indent*1, theParm.Value() ) )
 				ListValueOperations( theParm )
 			theDialValue = theParm.Value()
 			if debug:
-				print "{}Restoring {:d} deleted Value Operation{}".format( indent*1, len( theValOps ), \
-																			Plural( len( theValOps ) ) )
+				print( "{}Restoring {:d} deleted Value Operation{}".format( indent*1, len( theValOps ), \
+																			Plural( len( theValOps ) ) ) )
 			RestoreValueOperations( theParm, theValOps )
 			if debug:
-				print "{}Restored deleted Value Operations.".format( indent*1 )
+				print( "{}Restored deleted Value Operations.".format( indent*1 ) )
 				ListValueOperations( theParm )
 			return theDialValue
 		else: # Original interpolation method
@@ -320,8 +324,8 @@ def DialValue( theParm ):
 				theValOpType = theValOp.Type()
 				if theValOpType == poser.kValueOpTypeCodePYTHONCALLBACK: # Ignore python callbacks
 					if debug:
-						print "{}DialValue: Python CallBack of {}, {} ignored.".format(indent*1, \
-								theParm.Actor().InternalName(), theParm.InternalName())
+						print( "{}DialValue: Python CallBack of {}, {} ignored.".format(indent*1, \
+								theParm.Actor().InternalName(), theParm.InternalName()) )
 					continue
 				try:
 					theSourceParm = theValOp.SourceParameter()
@@ -394,45 +398,45 @@ def DialValue( theParm ):
 							theDialValue = theSourceValue / theDialValue
 					else:
 						if debug:
-							print "else: Figure {}, Actor {}, Parameter {} has a problem with this valueOperation.".format( \
+							print( "else: Figure {}, Actor {}, Parameter {} has a problem with this valueOperation.".format( \
 									theParm.Actor().ItsFigure().Name(), theParm.Actor().InternalName(), \
-									theParm.InternalName())
+									theParm.InternalName()) )
 						continue
 					if debug:
 						if theValOpType == poser.kValueOpTypeCodeDELTAADD:
-							print "{}DialValue: {}, {} source: {}, {} {} ({:f}) Delta: {:f} = {:f}".format(indent*2, 
+							print( "{}DialValue: {}, {} source: {}, {} {} ({:f}) Delta: {:f} = {:f}".format(indent*2, \
 									theParm.Actor().InternalName(), theParm.InternalName(), \
 									theSourceParm.Actor().InternalName(), theSourceParm.InternalName(), \
 									valOpTypeNames[theValOpType], theSourceValue, theValOp.Delta(), \
-									theSourceValue * theValOp.Delta())
+									theSourceValue * theValOp.Delta()) )
 						elif theValOpType == poser.kValueOpTypeCodeKEY:
-							print "{}DialValue: {}, {} source: {}, {} {} ({:f}) Value: {:f}".format(indent*2, 
+							print( "{}DialValue: {}, {} source: {}, {} {} ({:f}) Value: {:f}".format(indent*2, \
 									theParm.Actor().InternalName(), theParm.InternalName(), \
 									theSourceParm.Actor().InternalName(), theSourceParm.InternalName(), \
-									valOpTypeNames[theValOpType], theSourceValue, splineValue)
+									valOpTypeNames[theValOpType], theSourceValue, splineValue) )
 						else:
-							print "{}DialValue: {}, {} source: {}, {} {} ({:f})".format(indent*2, 
+							print( "{}DialValue: {}, {} source: {}, {} {} ({:f})".format(indent*2, \
 									theParm.Actor().InternalName(), theParm.InternalName(), \
 									theSourceParm.Actor().InternalName(), theSourceParm.InternalName(), \
-									valOpTypeNames[theValOpType], theSourceValue)
+									valOpTypeNames[theValOpType], theSourceValue) )
 				except: # Should never happen unless error in Poser source file so ignore.
 					if debug:
-						print "WARNING: Figure {}, Actor {}, Parameter {} has a problem with this valueOperation.".format( \
+						print( "WARNING: Figure {}, Actor {}, Parameter {} has a problem with this valueOperation.".format( \
 									theParm.Actor().ItsFigure().Name(), theParm.Actor().InternalName(), \
-									theParm.InternalName())
+									theParm.InternalName()) )
 					continue
 				if limitEachValOp: # Apply parameter limits (if forced) at each value operation.
 					if debug:
 						preLimitValue = theDialValue
 					theDialValue = ApplyParmLimits(theParm, theDialValue)
 					if debug:
-						print "{}DialValue: {}, {} {:f} (Limited: {:f})".format(indent*2, \
+						print( "{}DialValue: {}, {} {:f} (Limited: {:f})".format(indent*2, \
 									theParm.Actor().InternalName(), theParm.InternalName(), \
-									preLimitValue, theDialValue)
+									preLimitValue, theDialValue) )
 			if debug:
-				print "{}DialValue of {}, {} is {:f} (Limited: {:f})".format(indent*1, \
+				print( "{}DialValue of {}, {} is {:f} (Limited: {:f})".format(indent*1, \
 									theParm.Actor().InternalName(), theParm.InternalName(), \
-									theDialValue, ApplyParmLimits(theParm, theDialValue))
+									theDialValue, ApplyParmLimits(theParm, theDialValue)) )
 			"""
 			return ApplyParmLimits(theParm, theDialValue)
 	else: # No valueOp influence
@@ -472,16 +476,16 @@ def DialValueFrames( theParm, firstFrame, lastFrame ):
 		if remove: # Delete all non-Python ValueOperations, record dial value then re-create ValueOperations.
 			theValOps = RemoveValueOperations( theParm )
 			if debug:
-				print "{}Removed existing Value Operations. Value() = {:0g}".format( indent*1, theParm.Value() )
+				print( "{}Removed existing Value Operations. Value() = {:0g}".format( indent*1, theParm.Value() ) )
 				ListValueOperations( theParm )
 			for frame in range( firstFrame, lastFrame + 1 ):
 				theValues.append( theParm.ValueFrame( frame ) )
 			if debug:
-				print "{}Restoring {:d} deleted Value Operation{}".format( indent*1, len( theValOps ), \
-																			Plural( len( theValOps ) ) )
+				print( "{}Restoring {:d} deleted Value Operation{}".format( indent*1, len( theValOps ), \
+																			Plural( len( theValOps ) ) ) )
 			RestoreValueOperations( theParm, theValOps )
 			if debug:
-				print "{}Restored deleted Value Operations.".format( indent*1 )
+				print( "{}Restored deleted Value Operations.".format( indent*1 ) )
 				ListValueOperations( theParm )
 		else: # Original interpolation method
 			for frame in range( firstFrame, lastFrame + 1 ):
@@ -531,7 +535,7 @@ def DialAnimation( theParm, firstFrame, lastFrame ):
 		if remove: # Delete all non-Python ValueOperations, record dial value then re-create ValueOperations.
 			theValOps = RemoveValueOperations( theParm )
 			if debug:
-				print "{}Removed existing Value Operations. Value() = {:0g}".format( indent*1, theParm.Value() )
+				print( "{}Removed existing Value Operations. Value() = {:0g}".format( indent*1, theParm.Value() ) )
 				ListValueOperations( theParm )
 			for frame in range( firstFrame, lastFrame + 1 ):
 				theKeyFrames.append( KeyFrame( frame, theParm.ValueFrame( frame ), \
@@ -541,11 +545,11 @@ def DialAnimation( theParm, firstFrame, lastFrame ):
 												theParm.SplineBreakAtFrame( frame ), \
 												theParm.HasKeyAtFrame( frame ) ) )
 			if debug:
-				print "{}Restoring {:d} deleted Value Operation{}".format( indent*1, len( theValOps ), \
-																			Plural( len( theValOps ) ) )
+				print( "{}Restoring {:d} deleted Value Operation{}".format( indent*1, len( theValOps ), \
+																			Plural( len( theValOps ) ) ) )
 			RestoreValueOperations( theParm, theValOps )
 			if debug:
-				print "{}Restored deleted Value Operations.".format( indent*1 )
+				print( "{}Restored deleted Value Operations.".format( indent*1 ) )
 				ListValueOperations( theParm )
 		else: # Original interpolation method
 			for frame in range( firstFrame, lastFrame + 1 ):

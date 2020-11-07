@@ -189,6 +189,15 @@ def GetAnimSetActorParms( theAnimSetName ):
 	NOTE: be indexed by figure and actor, rather than just actor, so saving schemes can wrap the parameters.
 	"""
 
+def GetPoseNameFrameKey( theFrame=None ):
+	"""
+	Return the customData 'PoseName#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'PoseName#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+
 def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
 																			stripExt=False, useActor=False ):
 	"""
@@ -260,3 +269,13 @@ def UpdateCustomData( theObject, theData ):
 	theData		an OrderedDict() containing customData key, value pairs to be updated for the object.
 				NOTE: Each value is a Custom namedtuple of the format ( storeWithPoses, storeWithMaterials, string )
 	"""	
+
+def poser.AppVersion():
+	"""
+	For Poser versions prior to 11.2, poser.AppVersion() returns 'a.b.c .build' as the version string.
+	For Poser versions after 11.3, poser.AppVersion() returns 'a.b.build' where the build sequence restarted at zero.
+	PoserUI overrides poser.AppVersion() with a new variant, returning 'a.b.0.build' and adding offsets of 40000 for
+	Poser 11.3 and 41000 for Poser 12 to the build number to maintain its sequence for scripts which make build value
+	comparison.
+	The original poser.AppVersion() function is available as PoserUI.oldav(), if required.
+	"""
