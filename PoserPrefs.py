@@ -25,7 +25,7 @@
 ########################################################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = '2.0'
+poserPrefsVersion = '2.1'
 debug = False
 
 POSER_PREFS_VERSION = "POSERPREFS_VERSION"
