@@ -1,5 +1,5 @@
 # PoserPrefs.py
-# (c) 2014-2020 an0malaus (Geoff Hicks/GeoffIX)
+# (c) 2014-2021 an0malaus (Geoff Hicks/GeoffIX)
 #
 # This module provides standard handling for Poser Python Script preference files
 # If a specified preference file does not exist at the normal location of Poser's own preferences,
@@ -21,6 +21,7 @@
 #					Added path optional parameter to __init__() to specify external preference location
 # v2.0	20201107	Replace print statement with function for Python 3 compatibility in Poser 12.
 #					Python3 has no basestring type. Use str instead.
+# v2.1	20210514	Add Windows support for Poser Preferences file name not included in poser.PrefsLocation().
 ########################################################################################################################
 from __future__ import print_function
 
@@ -31,7 +32,7 @@ POSER_PREFS_VERSION = "POSERPREFS_VERSION"
 POSER_VERSION = "POSER_VERSION"
 LAST_OPEN_SAVE_PATH = "LAST_OPEN_SAVE_PATH"
 USE_COMPRESSION = "USE_COMPRESSION"
-POSER_PREFS = "Poser Prefs"
+POSER_PREFS = None #POSER_PREFS = "Poser Prefs" # Different names in Windows and macOS unreported by Poser 12.0.498
 GENERAL_FORMAT = '{} {}\n'
 PATH_FORMAT = '{} "{}"\n'
 VERSION_FORMAT = '{:0g}'
@@ -49,6 +50,12 @@ try:
 	basestring
 except NameError:
 	basestring = str
+# Windows Poser configuration differences not reported by Poser.
+if os.name == 'nt':
+	POSER_PREFS = "Poser.ini"
+elif os.name == 'posix':
+	POSER_PREFS = "Poser Prefs"
+
 
 class Preferences:
 	'Poser Python standard preference file handling'
