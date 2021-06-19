@@ -46,10 +46,11 @@
 # v2.0	20201107	Replace print statement with function call for Python3 compatibility in Poser12.
 #					Python3 raise only takes a single Exception instance or class with explicit parameters.
 #					Explicitly import PoserPrefs from PoserLib.
+# v2.1	20210620	Replace Python2 only OrderedDict iteritems() method with iter(dict.items()) for Python3. 
 ########################################################################################################################
 from __future__ import print_function
 
-PoserUserInterfaceVersion = '2.0'
+PoserUserInterfaceVersion = '2.1'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
@@ -792,7 +793,7 @@ def UpdateCustomData( theObject, theData ):
 	
 	if len( theData ) > 0: # Need to maintain customData Keys list
 		keys = GetCustomDataKeys( theObject )
-		for (key, data) in theData.iteritems():
+		for (key, data) in iter( theData.items() ):
 			if key not in keys: # Avoid duplicating existing keys
 				keys.append( key )
 			theObject.SetCustomData( key, data.value, data.storeWithPoses, data.storeWithMaterials )
