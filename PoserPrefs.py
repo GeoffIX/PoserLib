@@ -1,5 +1,5 @@
 # PoserPrefs.py
-# (c) 2014-2020 an0malaus (Geoff Hicks/GeoffIX)
+# (c) 2014-2021 an0malaus (Geoff Hicks/GeoffIX)
 #
 # This module provides standard handling for Poser Python Script preference files
 # If a specified preference file does not exist at the normal location of Poser's own preferences,
@@ -21,21 +21,25 @@
 #					Added path optional parameter to __init__() to specify external preference location
 # v2.0	20201107	Replace print statement with function for Python 3 compatibility in Poser 12.
 #					Python3 has no basestring type. Use str instead.
+# v2.1	20210514	Add Windows support for Poser Preferences file name not included in poser.PrefsLocation().
+#					Add LIB_ITEMS_SERVER_SORT preference key.
+#					Replace simple string double-quote delimiters with single-quote delimiters.
 ########################################################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = '2.0'
+poserPrefsVersion = '2.1'
 debug = False
 
-POSER_PREFS_VERSION = "POSERPREFS_VERSION"
-POSER_VERSION = "POSER_VERSION"
-LAST_OPEN_SAVE_PATH = "LAST_OPEN_SAVE_PATH"
-USE_COMPRESSION = "USE_COMPRESSION"
-POSER_PREFS = "Poser Prefs"
+POSER_PREFS_VERSION = 'POSERPREFS_VERSION'
+POSER_VERSION = 'POSER_VERSION'
+LAST_OPEN_SAVE_PATH = 'LAST_OPEN_SAVE_PATH'
+LIB_ITEMS_SERVER_SORT = 'LIB_ITEMS_SERVER_SORT'
+USE_COMPRESSION = 'USE_COMPRESSION'
+POSER_PREFS = None #POSER_PREFS = 'Poser Prefs' # Different names in Windows and macOS unreported by Poser 12.0.498
 GENERAL_FORMAT = '{} {}\n'
 PATH_FORMAT = '{} "{}"\n'
 VERSION_FORMAT = '{:0g}'
-LIBRARY_PATH = [ "Runtime", "Libraries" ]
+LIBRARY_PATH = [ 'Runtime', 'Libraries' ]
 
 import os
 import collections
@@ -49,6 +53,12 @@ try:
 	basestring
 except NameError:
 	basestring = str
+# Windows Poser configuration differences not reported by Poser.
+if os.name == 'nt':
+	POSER_PREFS = 'Poser.ini'
+elif os.name == 'posix':
+	POSER_PREFS = 'Poser Prefs'
+
 
 class Preferences:
 	'Poser Python standard preference file handling'
@@ -90,9 +100,9 @@ class Preferences:
 		path = self.preferences[ preferenceKey ]
 		if debug:
 			print( "Testing hierarchy of {} preference: '{}'".format ( preferenceKey, path ) )
-		if path.lower().find("runtime") < 0 or path.lower().find("libraries") < 0:
+		if path.lower().find('runtime') < 0 or path.lower().find('libraries') < 0:
 			if debug:
-				print( "{} preference: '{}' is outside Runtime Libraries,".format( preferenceKey, path ), end = " " )
+				print( "{} preference: '{}' is outside Runtime Libraries,".format( preferenceKey, path ), end = ' ' )
 			try:
 				pathList = [ poser.ContentRootLocation() ]
 			except:
@@ -127,18 +137,18 @@ class Preferences:
 		"""
 		if self.name is None:
 			if debug:
-				print( "Save disabled for unspecified preferences file." )
+				print( 'Save disabled for unspecified preferences file.' )
 		else:
-			self.file = open(os.path.join( self.path, self.name ), "wt") # Overwrite existing preferences
+			self.file = open(os.path.join( self.path, self.name ), 'wt') # Overwrite existing preferences
 			for pref in self.preferences.keys():
 				if isinstance( self.preferences[ pref ], basestring ): # Double quote strings
 					self.file.write( PATH_FORMAT.format( pref, self.preferences[ pref ] ) )
 					if debug:
-						print( "string preference {} : {}".format( pref, self.preferences[ pref ] ) )
+						print( 'string preference {} : {}'.format( pref, self.preferences[ pref ] ) )
 				else:
 					self.file.write( GENERAL_FORMAT.format( pref, self.preferences[ pref ] ) )
 					if debug:
-						print( "general preference {} : {}".format( pref, self.preferences[ pref ] ) )
+						print( 'general preference {} : {}'.format( pref, self.preferences[ pref ] ) )
 			self.file.close()
 	
 	def LegacyPrefsLocation():
@@ -146,38 +156,38 @@ class Preferences:
 		Poser Pro 2014 defines poser.PrefsLocation().
 		This function returns the preference path for earlier Poser versions.
 		"""
-		prefs6Dir = [ "Runtime", "prefs" ]
-		prefs7Dir = [ "~", "Library", "Preferences", "Poser 7" ]
-		prefs8Dir = [ "~", "Library", "Preferences", "Poser", "8.0" ]
-		prefsProDir = [ "~", "Library", "Preferences", "Poser Pro" ]
-		prefsPro2010Dir = [ "~", "Library", "Preferences", "Poser Pro", "2.0" ]
-		prefs9Dir = [ "~", "Library", "Preferences", "Poser", "9" ]
-		prefsPro2012Dir = [ "~", "Library", "Preferences", "Poser Pro", "9" ]
-		# prefsPro2014Dir = [ "~", "Library", "Application Support", "Poser Pro", "10" ]
+		prefs6Dir = [ 'Runtime', 'prefs' ]
+		prefs7Dir = [ '~', 'Library', 'Preferences', 'Poser 7' ]
+		prefs8Dir = [ '~', 'Library', 'Preferences', 'Poser', '8.0' ]
+		prefsProDir = [ '~', 'Library', 'Preferences', 'Poser Pro' ]
+		prefsPro2010Dir = [ '~', 'Library', 'Preferences', 'Poser Pro', '2.0' ]
+		prefs9Dir = [ '~', 'Library', 'Preferences', 'Poser', '9' ]
+		prefsPro2012Dir = [ '~', 'Library', 'Preferences', 'Poser Pro', '9' ]
+		# prefsPro2014Dir = [ '~', 'Library', 'Application Support', 'Poser Pro', '10' ]
 		# as returned by poser.PrefsLocation()
 		
 		poserDir = [ os.path.dirname( poser.AppLocation() ) ]
 		poserApp = os.path.basename( poser.AppLocation() )
 		ver = poser.Version()
 		if debug:
-			print( "Poser Directory: ", poserDir )
-			print( "Poser Application: ", poserApp )
-			print( "Poser Version: ", ver )
+			print( 'Poser Directory: ', poserDir )
+			print( 'Poser Application: ', poserApp )
+			print( 'Poser Version: ', ver )
 		verIndex = ver.rfind('.')
 		proIndex = poserApp.rfind('Pro')
 		if debug:
-			print( "Pro Index: ", proIndex )
-		if ver[:verIndex] == "9":
+			print( 'Pro Index: ', proIndex )
+		if ver[:verIndex] == '9':
 			if proIndex > 0:
 				prefsDir = prefsPro2012Dir
 			else:
 				prefsDir = prefs9Dir
-		elif ver[:verIndex] == "8":
+		elif ver[:verIndex] == '8':
 			if proIndex > 0:
 				prefsDir = prefsPro2010Dir
 			else:
 				prefsDir = prefs8Dir
-		elif ver[:verIndex] == "7":
+		elif ver[:verIndex] == '7':
 			if proIndex > 0:
 				prefsDir = prefsProDir
 			else:
@@ -208,11 +218,11 @@ class Preferences:
 		else:
 			prefFileName = os.path.join( self.path, self.name )
 		if debug:
-			print( "Prefs Path: {}\nPrefs File: {}".format( self.path, prefFileName ) )
+			print( 'Prefs Path: {}\nPrefs File: {}'.format( self.path, prefFileName ) )
 		
 		# Open preference file
 		try:
-			self.file = open(prefFileName, "rt")
+			self.file = open(prefFileName, 'rt')
 		except: # No prefFile, use Poser Prefs
 			if debug:
 				print( "No '{}' file found,".format( prefFileName ) )
@@ -224,7 +234,7 @@ class Preferences:
 			if debug:
 				print( "loading '{}'.".format( prefFileName ) )
 			try:
-				self.file = open(prefFileName, "rt")
+				self.file = open(prefFileName, 'rt')
 			except: # No Poser Prefs
 				if debug:
 					print( "No '{}' file found,".format(  prefFileName ) )
@@ -240,7 +250,7 @@ class Preferences:
 					break
 				for line in lines:
 					if debug:
-						print( "Read line {}".format( line ), end = " " )
+						print( 'Read line {}'.format( line ), end = ' ' )
 					part = line.split() # Space delimited
 					if loadExtra or part[0] in initialKeys:
 						prefValue = ' '.join(part[1:]) # First split part is key, the rest is value
