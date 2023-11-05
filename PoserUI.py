@@ -1,5 +1,5 @@
 # PoserUI.py
-# (c) 2014-2020 GeoffIX (Geoff Hicks)
+# (c) 2014-2023 GeoffIX (Geoff Hicks)
 # 
 # This module implements Poser User Interface features currently missing from PoserPython.
 #
@@ -46,15 +46,32 @@
 # v2.0	20201107	Replace print statement with function call for Python3 compatibility in Poser12.
 #					Python3 raise only takes a single Exception instance or class with explicit parameters.
 #					Explicitly import PoserPrefs from PoserLib.
+# v2.1	20210620	Replace Python2 only OrderedDict iteritems() method with iter(dict.items()) for Python3. 
+# v2.2	20220401	Add support for double-quote delimited CustomData Key values used by Poser 12.
+#					Add awareness of AllCustomData() method in Poser 12.
+#		20220402	Use animSet.Name() method if available.
+#					New methods: GetFrameKey, GetLocationFrameKey, GetFrameCustomData, GetCustomDataLocation, 
+#					ListCustomData.
+#					Modified methods: GetPoseNameFrameKey, GetCustomDataPoseName, GetCustomDataKeys, SetCustomDataKeys,
+#					AddCustomData, ListAllCustomData.
+#					Use json.dumps() to serialise any dict or complex CustomData being printed.
+#		20220530	New methods: GetMultiPoseFrameKey, GetCustomDataMultiPose.
+# v2.3	20230814	Add dict ActorTypeNames with keys returned by the Poser GetIdType() method and string values.
+#					Test for the GetIdType() actor method.
+#					Add support for actor types measurementLine, measurementAngle, measurementCircle & 
+#					measurementPolyLine.
+#		20230818	Add support for scene object types controlHandleProp, curveProp, waveDeformerProp & coneForceFieldProp.
+#		20230819	Add support for scene object type uniformForceFieldProp.
 ########################################################################################################################
 from __future__ import print_function
 
-PoserUserInterfaceVersion = '2.0'
+PoserUserInterfaceVersion = '2.3.2'
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 
 import os
 import re
+import json
 import poser
 from PoserLib import PoserPrefs
 #from importlib import reload
@@ -93,8 +110,34 @@ UseCompression = 0
 TestParmName = 'RemoveMe'
 PPM_HASKEYATFRAME = 'HasKeyAtFrame'
 PPM_ISCONTROLPROP = 'IsControlProp'
+PPM_ALLCUSTOMDATA = 'AllCustomData'
+PPM_ANIMSETNAME = 'AnimSetName'
+PPM_GETIDTYPE = 'GetIdType'
+ActorTypeNames = {  7 : 'actor',
+					8 : 'camera',
+					9 : 'light',
+					12 : 'prop', # IsPropInstance
+					15 : 'curveProp',
+					16 : 'baseProp',
+					18 : 'magnetDeformerProp',
+					19 : 'waveDeformerProp',
+					21 : 'sphereZoneProp',
+					23 : 'hairProp',
+					24 : 'uniformForceFieldProp',
+					25 : 'coneForceFieldProp',
+					26 : 'controlProp',
+					28 : 'controlHandleProp',
+					29 : 'groupingObject',
+					34 : 'measurementLine',
+					35 : 'measurementAngle',
+					36 : 'measurementCircle',
+					37 : 'measurementPolyline',
+					}
 PoserPythonMethod = { PPM_HASKEYATFRAME : None, \
-					  PPM_ISCONTROLPROP : None } # method availability test dict
+					  PPM_ISCONTROLPROP : None, \
+					  PPM_ALLCUSTOMDATA : None, \
+					  PPM_ANIMSETNAME : None, \
+					  PPM_GETIDTYPE : None } # method availability test dict
 NodeInputCodeName = {	poser.kNodeInputCodeNONE : 'None', # -1
 						poser.kNodeInputCodeFLOAT : 'Float', # 0
 						poser.kNodeInputCodeCOLOR : 'Color', # 1
@@ -236,6 +279,9 @@ AnimSetExtensionAttr = 'Extension'
 CustomDataKeyDelimiter = ';'
 CustomDataListKey = 'Keys'
 CustomDataFrameDelimiter = '#'
+CustomDataFrameFmt = '{}{}{:g}' # Use CustomDataPoseNameKey, CustomDataFrameDelimiter and frame number
+CustomDataLocationKey = 'Location' # customData value for this key may contain path & location information as well
+CustomDataMultiPoseKey = 'MultiPose' # customData value for this key may contain path information as well
 CustomDataPoseNameKey = 'PoseName' # customData value for this key may contain path information as well
 CustomDataPoseNameFrameFmt = '{}{}{:g}' # Use CustomDataPoseNameKey, CustomDataFrameDelimiter and frame number
 Custom = namedtuple( 'Custom', [ 'storeWithPoses', 'storeWithMaterials', 'value' ] ) # customData attributes
@@ -295,15 +341,22 @@ def TestMethods( theParm=None ):
 	"""
 	This method determines whether Poser Python supports the HasKeyAtFrame parameter method.
 	This method determines whether Poser Python supports the IsControlProp actor method.
+	This method determines whether Poser Python supports the AllCustomData actor method.
+	This method determines whether Poser Python supports the Name animSet method.
+	This method determines whether Poser Python supports the GetTypId actor method.
 	
 	theParm:	An optionally supplied parameter to use for the method existence test
 	"""
-	global PoserPythonMethods
+	global PoserPythonMethod
 	global TestParmName
 	global PPM_HASKEYATFRAME
 	global PPM_ISCONTROLPROP
+	global PPM_ALLCUSTOMDATA
+	global PPM_ANIMSETNAME
+	global PPM_GETIDTYPE
 	
 	RemoveTestParm = False
+	RemoveAnimSet = False
 	if theParm is None:
 		scene = poser.Scene()
 		actor = scene.Actors()[ 0 ] # Scene should always have at least UNIVERSE actor
@@ -335,58 +388,93 @@ def TestMethods( theParm=None ):
 				PoserPythonMethod[ PPM_HASKEYATFRAME ] = True
 		except:
 			PoserPythonMethod[ PPM_HASKEYATFRAME ] = False
+	if PoserPythonMethod[ PPM_ALLCUSTOMDATA ] is None: # Not tested yet
+		try:
+			test = actor.AllCustomData() # This may validly return None without exception
+			PoserPythonMethod[ PPM_ALLCUSTOMDATA ] = True
+		except:
+			PoserPythonMethod[ PPM_ALLCUSTOMDATA ] = False
+	if PoserPythonMethod[ PPM_ANIMSETNAME ] is None: # Not tested yet
+		scene = poser.Scene()
+		try:
+			aset = scene.CreateAnimSet( TestParmName )
+			RemoveAnimSet = True
+		except poser.error: # Animset already existed, so don't remove
+			aset = scene.AnimSet( TestParmName )
+		try:
+			test = aset.Name()
+			PoserPythonMethod[ PPM_ANIMSETNAME ] = True
+		except:
+			PoserPythonMethod[ PPM_ANIMSETNAME ] = False
+	if PoserPythonMethod[ PPM_GETIDTYPE ] is None: # Not tested yet
+		try:
+			test = None
+			test = actor.GetIdType()
+			if test is not None:
+				PoserPythonMethod[ PPM_GETIDTYPE ] = True
+		except:
+			PoserPythonMethod[ PPM_GETIDTYPE ] = False
 	if RemoveTestParm: # actor and parm to be removed must exist if we got here
 		actor.RemoveValueParameter( TestParmName )
+	if RemoveAnimSet:
+		scene.DeleteAnimSet( TestParmName )
 
 def ActorTypeName( theActor ):
 	"""
 	Return the actor type string which precedes the actor name in poser files.
 	NOTE: Fallback detection methods for controlProp and groupingObject prop actors are used for environments where
 	NOTE: specific identification methods have not been exposed to poser python as per version 11.0.6.33735
+	NOTE: The four measurement prop types are indistinguishable using legacy methods, 
+	NOTE: so they are ignored if GetIdType() is unavailable.
 	
 	theActor	: the actor whose type string is to be returned.
 	"""
-	if theActor.IsBodyPart(): # actor or refactor
-		return 'actor'
-	elif theActor.IsCamera():
-		return 'camera'
-	elif theActor.IsLight():
-		return 'light'
-	elif theActor.IsProp():
-		if theActor.IsBase():
-			return 'baseProp'
-		elif theActor.IsDeformer():
-			return 'magnetDeformerProp'
-		elif theActor.IsHairProp():
-			return 'hairProp'
-		elif theActor.IsZone():
-			return 'sphereZoneProp'
-		else: # prop or controlProp or groupingObject
-			try:
-				if theActor.IsControlProp(): # New method for Poser 11
-					return 'controlProp'
-				else:
-					try: # Catch os.path method exceptions if theActor.GeomFileName() is None
-						if os.path.splitext( os.path.basename( theActor.GeomFileName() ) )[ 0 ] == 'grouping':
-							return 'groupingObject' # Not yet exposed by python method in Poser 11.0.6.33735
-					except:
-						return 'prop'
+	global ActorTypeNames
+	
+	try:
+		return ActorTypeNames[ theActor.GetIdType() ]
+	except: # Use the old method
+		if theActor.IsBodyPart(): # actor or refactor
+			return 'actor'
+		elif theActor.IsCamera():
+			return 'camera'
+		elif theActor.IsLight():
+			return 'light'
+		elif theActor.IsProp(): # Includes measurements but indistinguishable
+			if theActor.IsBase():
+				return 'baseProp'
+			elif theActor.IsDeformer():
+				return 'magnetDeformerProp'
+			elif theActor.IsHairProp():
+				return 'hairProp'
+			elif theActor.IsZone():
+				return 'sphereZoneProp'
+			else: # prop or controlProp or groupingObject
+				try:
+					if theActor.IsControlProp(): # New method for Poser 11
+						return 'controlProp'
 					else:
-						return 'prop'
-			except:
-				namePart = theActor.InternalName().split(':')
-				if namePart[0] in [ 'FocusDistanceControl', 'CenterOfMass', 'GoalCenterOfMass' ]:
-					return 'controlProp'
-				else:
-					try: # Catch os.path method exceptions if theActor.GeomFileName() is None
-						if os.path.splitext( os.path.basename( theActor.GeomFileName() ) )[ 0 ] == 'grouping':
-							return 'groupingObject' # Not yet exposed by python method in Poser 11.0.6.33735
-					except:
-						return 'prop'
+						try: # Catch os.path method exceptions if theActor.GeomFileName() is None
+							if os.path.splitext( os.path.basename( theActor.GeomFileName() ) )[ 0 ] == 'grouping':
+								return 'groupingObject' # Not yet exposed by python method in Poser 11.0.6.33735
+						except:
+							return 'prop'
+						else:
+							return 'prop'
+				except:
+					namePart = theActor.InternalName().split(':')
+					if namePart[0] in [ 'FocusDistanceControl', 'CenterOfMass', 'GoalCenterOfMass' ]:
+						return 'controlProp'
 					else:
-						return 'prop'
-	else: # Return a usable default
-		return 'actor'
+						try: # Catch os.path method exceptions if theActor.GeomFileName() is None
+							if os.path.splitext( os.path.basename( theActor.GeomFileName() ) )[ 0 ] == 'grouping':
+								return 'groupingObject' # Not yet exposed by python method in Poser 11.0.6.33735
+						except:
+							return 'prop'
+						else:
+							return 'prop'
+		else: # Return a usable default
+			return 'actor'
 
 def GetCameraParm( theCamera, theParmCode, inherit=False ):
 	"""
@@ -548,19 +636,26 @@ def GetAnimSetNames():
 	Return a list of names of animSets in the poser scene. AnimSet Names are not yet exposed to Python in 11.0.6.33735
 	Names will either consist of the value of the 'Name' attribute of the animSet or the animSets() list index in the
 	form 'AnimSet {}'.format(index)
+	AnimSet names are now exposed in Poser 12.0.735, so that method is used if available.
 	"""
+	global PoserPythonMethod
+	global PPM_ANIMSETNAME
 	global AnimSetNameFmt
 	global AnimSetNameAttr
 	
 	AnimSetNameList = []
 	setNum = 0
-	for animSet in poser.Scene().AnimSets():
-		foundName = False
-		for attrib in animSet.Attributes():
-			if attrib[0] == AnimSetNameAttr:
-				foundName = True
-				setName = attrib[1]
-				break
+	for animSet in ( poser.Scene().AnimSets() or [] ):
+		if PoserPythonMethod[ PPM_ANIMSETNAME ]:
+			setName = animSet.Name()
+			foundName = True
+		else:
+			foundName = False
+			for attrib in animSet.Attributes():
+				if attrib[0] == AnimSetNameAttr:
+					foundName = True
+					setName = attrib[1]
+					break
 		setNum += 1
 		if not foundName: # AnimSet names are not currently exposed to python in Poser Pro 11.0.6.33735
 			setName = AnimSetNameFmt.format( setNum )
@@ -607,7 +702,49 @@ def GetAnimSetActorParms( theAnimSetName ):
 		animSetActors = None # Indicate no such animSet in scene
 	return animSetActors
 
-def GetPoseNameFrameKey( theFrame=None ):
+def GetFrameKey( keyName=None, theFrame=None ):
+	"""
+	Return the customData 'keyName#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	If no keyName is specified, nothing will precede the frame delimiter.
+	
+	theFrame	The integer frame component of the 'keyName#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+	global CustomDataFrameDelimiter
+	global CustomDataFrameFmt
+	
+	if keyName is None:
+		keyName = ''
+	if theFrame is None:
+		theFrame = poser.Scene().Frame()
+	return CustomDataFrameFmt.format( keyName, CustomDataFrameDelimiter, theFrame )
+
+def GetLocationFrameKey( theFrame=None ):
+	"""
+	Return the customData 'Location#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'Location#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+	global CustomDataLocationKey
+	
+	return GetFrameKey( CustomDataLocationKey, theFrame )
+
+def GetMultiPoseFrameKey( theFrame=None ):
+	"""
+	Return the customData 'MultiPose#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'MultiPose#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+	global CustomDataMultiPoseKey
+	
+	return GetFrameKey( CustomDataMultiPoseKey, theFrame )
+
+def GetPoseNameFrameKey( theFrame=None ): # Retained for legacy compatibility
 	"""
 	Return the customData 'PoseName#nn' key matching the specified frame.
 	If no frame is specified, use the current scene frame.
@@ -615,14 +752,107 @@ def GetPoseNameFrameKey( theFrame=None ):
 	theFrame	The integer frame component of the 'PoseName#nn' customData key to be returned. If None, default to
 				the current scene frame
 	"""
-	global CustomDataFrameDelimiter
 	global CustomDataPoseNameKey
-	global CustomDataPoseNameFrameFmt
 	
-	if theFrame is None:
-		theFrame = poser.Scene().Frame()
-	return CustomDataPoseNameFrameFmt.format( CustomDataPoseNameKey, CustomDataFrameDelimiter, theFrame )
+	return GetFrameKey( CustomDataPoseNameKey, theFrame )
 
+def GetFrameCustomData( theFigure=None, theActor=None, keyName=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'keyName#nn' keys matching the specified keyName and frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'keyName' if 'keyName#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'keyName' is to be returned
+	theFrame	The frame component of the 'keyName#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'keyName' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename
+	stripExt	Remove the '.pz2' or other extension if True
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+	global CustomDataListKey
+	global CustomDataKeyDelimiter
+	global PoserPythonMethod
+	global PPM_ALLCUSTOMDATA
+	
+	customData = None
+	keyFound = None
+	framekey = GetFrameKey( keyName, theFrame )
+	if useActor: # Try theActor customData before testing theFigure
+		theObject = theActor
+	elif theFigure is not None: # Figure customData will override individual actor PoseName
+		theObject = theFigure
+	else: # Check theActor customData
+		theObject = theActor
+	if theObject is None:
+		theObject = poser.Scene().CurrentActor()
+	if PoserPythonMethod[ PPM_ALLCUSTOMDATA ]: # Manual CustomData key recording not required
+		keys = list( ( theObject.AllCustomData() or {} ).keys() )
+	else:
+		customKeys = theObject.CustomData( CustomDataListKey )
+		keys = []
+		if customKeys is not None: # Extract existing customData Keys value into keys list
+			keys = customKeys.split( CustomDataKeyDelimiter )
+	if framekey in keys:
+		customData = theObject.CustomData( framekey )
+		keyFound = framekey
+	elif useLast and keyName in keys:
+		customData = theObject.CustomData( CustomDataPoseNameKey )
+		keyFound = keyName
+	if customData is not None and type( customData ) == str:
+		if baseOnly:
+			customData = os.path.basename( customData )
+		if stripExt:
+			customData, ext = os.path.splitext( customData )
+	elif useActor: # No actor PoseName customData, so try falling back to theFigure
+		customData, keyFound = GetFrameCustomData( theFigure, theActor, keyName, theFrame, useLast, baseOnly, stripExt, False )
+	return customData, keyFound
+
+def GetCustomDataLocation( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'Location#nn' keys matching the specified frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'Location' if 'Location#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'PoseName' is to be returned
+	theFrame	The frame component of the 'Location#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'Location' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename (Ignored)
+	stripExt	Remove the '.pz2' or other extension if True (Ignored)
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+	global CustomDataLocationKey
+	
+	# NOTE: Location value is not a string, so baseOnly and stripExt parameters are ignored
+	return GetFrameCustomData( theFigure, theActor, CustomDataLocationKey, theFrame, useLast, False, False, useActor )
+
+def GetCustomDataMultiPose( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'MultiPose#nn' keys matching the specified frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'MultiPose' if 'MultiPose#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'MultiPose' is to be returned
+	theFrame	The frame component of the 'MultiPose#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'MultiPose' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename
+	stripExt	Remove the '.pz2' or other extension if True
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+	global CustomDataMultiPoseKey
+	
+	return GetFrameCustomData( theFigure, theActor, CustomDataMultiPoseKey, theFrame, useLast, baseOnly, stripExt, useActor )
 
 def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
 																			stripExt=False, useActor=False ):
@@ -641,89 +871,9 @@ def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast
 	stripExt	Remove the '.pz2' or other extension if True
 	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
 	"""
-	global CustomDataListKey
-	global CustomDataKeyDelimiter
 	global CustomDataPoseNameKey
 	
-	poseName = None
-	keyFound = None
-	framekey = GetPoseNameFrameKey( theFrame )
-	if useActor: # Try theActor PoseName before testing theFigure
-		theObject = theActor
-	elif theFigure is not None: # Figure PoseName will override individual actor PoseName
-		theObject = theFigure
-	else: # Check theActor PoseName
-		theObject = theActor
-	if theObject is None:
-		theObject = poser.Scene().CurrentActor()
-	customKeys = theObject.CustomData( CustomDataListKey )
-	keys = []
-	if customKeys is not None: # Extract existing customData Keys value into keys list
-		keys = customKeys.split( CustomDataKeyDelimiter )
-		if framekey in keys:
-			poseName = theObject.CustomData( framekey )
-			keyFound = framekey
-		elif useLast and CustomDataPoseNameKey in keys:
-			poseName = theObject.CustomData( CustomDataPoseNameKey )
-			keyFound = CustomDataPoseNameKey
-	if poseName is not None:
-		if baseOnly:
-			poseName = os.path.basename( poseName )
-		if stripExt:
-			poseName, ext = os.path.splitext( poseName )
-	elif useActor: # No actor PoseName customData, so try falling back to theFigure
-		poseName, keyFound = GetCustomDataPoseName( theFigure, theActor, theFrame, useLast, baseOnly, stripExt, False )
-	return poseName, keyFound
-
-def StringSplitByNumbers(x):
-	"""
-	Regular expression sort key for numeric order sorting of digit sequences in alphanumeric strings
-	Credit: Matt Connolly (http://code.activestate.com/recipes/users/4177092/)
-	"""
-	r = re.compile('(\d+)')
-	l = r.split(x)
-	return [int(y) if y.isdigit() else y for y in l]
-
-def ListAllCustomData( theObject=None ):
-	"""
-	Print a list of all customData for theObject, or the entire scene, with frame references numerically sorted
-	Excludes the CustomDataListKey itself, which is only there to provide missing customData lookup functionality
-	
-	theObject:	figure or actor type scene object. If None, report customData for the entire scene
-	"""
-	global CustomDataListKey
-	global CustomDataKeyDelimiter
-	global CustomDataFrameDelimiter
-	global CustomDataPoseNameKey
-	global CustomDataPoseNameFrameFmt
-	
-	if theObject is not None:
-		customKeys = theObject.CustomData( CustomDataListKey )
-		if customKeys is not None:
-			keyList = sorted( customKeys.split( CustomDataKeyDelimiter ), key = StringSplitByNumbers )
-			keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
-			for key in keyList:
-				data = theObject.CustomData( key )
-				print( '{}, "{}" "{}"'.format( theObject.Name(), key, data ) )
-	else:
-		scene = poser.Scene()
-		for actor in scene.Actors(): # This parses all unparented actors in the scene as well as actors in figures.
-			customKeys = actor.CustomData( CustomDataListKey )
-			if customKeys is not None:
-				keyList = sorted( customKeys.split( CustomDataKeyDelimiter ), key = StringSplitByNumbers )
-				keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
-				for key in keyList:
-					data = actor.CustomData( key )
-					print( '{}, "{}" "{}"'.format( actor.Name(), key, data ) )
-		else:
-			for figure in scene.Figures():
-				customKeys = figure.CustomData( CustomDataListKey )
-				if customKeys is not None:
-					keyList = sorted( customKeys.split( CustomDataKeyDelimiter ), key = StringSplitByNumbers )
-					keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
-					for key in keyList:
-						data = figure.CustomData( key )
-						print( '{}, "{}" "{}"'.format( figure.Name(), key, data ) )
+	return GetFrameCustomData( theFigure, theActor, CustomDataPoseNameKey, theFrame, useLast, baseOnly, stripExt, useActor )
 
 def GetCustomDataKeys( theObject ):
 	"""
@@ -733,25 +883,32 @@ def GetCustomDataKeys( theObject ):
 	"""
 	global CustomDataListKey
 	global CustomDataKeyDelimiter
+	global PoserPythonMethod
+	global PPM_ALLCUSTOMDATA
 	
-	customKeys = theObject.CustomData( CustomDataListKey )
-	keys = []
-	if customKeys is not None: # Extract existing customData Keys value into keys list
-		keys = customKeys.split( CustomDataKeyDelimiter )
+	if PoserPythonMethod[ PPM_ALLCUSTOMDATA ]: # Manual CustomData key recording not required
+		keys = list( ( theObject.AllCustomData() or {} ).keys() )
+	else:
+		customKeys = theObject.CustomData( CustomDataListKey )
+		keys = []
+		if customKeys is not None: # Extract existing customData Keys value into keys list
+			keys = customKeys.split( CustomDataKeyDelimiter )
 	return keys
 
 def SetCustomDataKeys( theObject, keys ):
 	"""
 	Given theObject, which may refer to either a figure or an actor, set the CustomDataListKey customData to the 
-	concatenated, delimited list of keys specified.
+	concatenated, delimited list of keys specified. This is redundant if the AllCustomData() method is available.
 	
 	theObject	the entity (figure or actor) whose list of customData keys is to be set.
 	keys		the list of keys to be concatenated and delimited then saved to CustomDataListKey.
 	"""
 	global CustomDataListKey
 	global CustomDataKeyDelimiter
+	global PoserPythonMethod
+	global PPM_ALLCUSTOMDATA
 	
-	if len( keys ) > 0:
+	if not PoserPythonMethod[ PPM_ALLCUSTOMDATA ] and len( keys ) > 0:
 		customKeys = CustomDataKeyDelimiter.join( keys )
 		theObject.SetCustomData( CustomDataListKey, customKeys, 0, 0 ) # Save lookup for customData Keys
 
@@ -759,6 +916,7 @@ def AddCustomData( theObject, key, value=None, storeWithPoses=0, storeWithMateri
 	"""
 	Given theObject, which may refer to either a figure or an actor, set its customData as specified.
 	The key will be included in the CustomDataListKey value, delimited by CustomDataKeyDelimiter: ';'
+	Separate key storage is not required in Poser 12.0.735 with the AllCustomData() method.
 	
 	theObject			the entity (figure or actor) whose customData is to be set.
 	key					the key whose customData value is to be set.
@@ -766,11 +924,15 @@ def AddCustomData( theObject, key, value=None, storeWithPoses=0, storeWithMateri
 	storeWithPoses		flag 0 or 1 indicating whether Poser will save the customData with poses.
 	storeWithMaterials	flag 0 or 1 indicating whether Poser will save the customData with material poses.
 	"""	
-	keys = GetCustomDataKeys( theObject )
+	global PoserPythonMethod
+	global PPM_ALLCUSTOMDATA
+	
 	if theObject and key:
-		if key not in keys:
-			keys.append( key )
-			SetCustomDataKeys( theObject, keys ) # Record the newly added key
+		if not PoserPythonMethod[ PPM_ALLCUSTOMDATA ]: # Separate key storage required.
+			keys = GetCustomDataKeys( theObject )
+			if key not in keys:
+				keys.append( key )
+				SetCustomDataKeys( theObject, keys ) # Record the newly added key
 		theObject.SetCustomData( key, value, storeWithPoses, storeWithMaterials )
 	
 def UpdateCustomData( theObject, theData ):
@@ -787,22 +949,69 @@ def UpdateCustomData( theObject, theData ):
 	global CustomDataListKey
 	global CustomDataKeyDelimiter
 	global CustomDataFrameDelimiter
+	global customDataLocationKey
 	global CustomDataPoseNameKey
 	global CustomDataPoseNameFrameFmt
 	
 	if len( theData ) > 0: # Need to maintain customData Keys list
 		keys = GetCustomDataKeys( theObject )
-		for (key, data) in theData.iteritems():
+		for (key, data) in iter( theData.items() ):
 			if key not in keys: # Avoid duplicating existing keys
 				keys.append( key )
 			theObject.SetCustomData( key, data.value, data.storeWithPoses, data.storeWithMaterials )
-			if key == CustomDataPoseNameKey: # Replicate this customData for the current frame
-				framekey = CustomDataPoseNameFrameFmt.format( CustomDataPoseNameKey, CustomDataFrameDelimiter, \
-																								poser.Scene().Frame() )
+			if key in [ CustomDataLocationKey, CustomDataPoseNameKey ]: # Replicate this customData for the current frame
+				framekey = CustomDataPoseNameFrameFmt.format( key, CustomDataFrameDelimiter, poser.Scene().Frame() )
 				if framekey not in keys:
 					keys.append( framekey )
 				theObject.SetCustomData( framekey, data.value, data.storeWithPoses, data.storeWithMaterials )
 		SetCustomDataKeys( theObject, keys )
+
+def StringSplitByNumbers(x):
+	"""
+	Regular expression sort key for numeric order sorting of digit sequences in alphanumeric strings
+	Credit: Matt Connolly (http://code.activestate.com/recipes/users/4177092/)
+	"""
+	r = re.compile('(\d+)')
+	l = r.split(x)
+	return [int(y) if y.isdigit() else y for y in l]
+
+def ListCustomData( theObject ):
+	"""
+	Print a list of all customData for theObject, with frame references numerically sorted
+	Excludes the CustomDataListKey itself, which is only there to provide missing customData lookup functionality
+	
+	theObject:	figure or actor type scene object. If None, report customData for the entire scene
+	"""
+	global CustomDataListKey
+	global CustomDataKeyDelimiter
+	global CustomDataFrameDelimiter
+	global CustomDataPoseNameKey
+	global CustomDataPoseNameFrameFmt
+	
+	customKeys = GetCustomDataKeys( theObject )
+	if customKeys:
+		keyList = sorted( customKeys, key = StringSplitByNumbers )
+		keyList = [ elem for elem in keyList if elem != CustomDataListKey ]
+		for key in keyList:
+			data = theObject.CustomData( key )
+			print( '{}, "{}" {}'.format( theObject.Name(), key, json.dumps( data ) ) )
+
+def ListAllCustomData( theObject=None ):
+	"""
+	Print a list of all customData for theObject, or the entire scene, with frame references numerically sorted
+	Excludes the CustomDataListKey itself, which is only there to provide missing customData lookup functionality
+	
+	theObject:	figure or actor type scene object. If None, report customData for the entire scene
+	"""	
+	if theObject is not None:
+		ListCustomData( theObject )
+	else:
+		scene = poser.Scene()
+		for actor in scene.Actors(): # This parses all unparented actors in the scene as well as actors in figures.
+			ListCustomData( actor )
+		else:
+			for figure in scene.Figures():
+				ListCustomData( figure )
 
 
 # Override Poser 11.2 AppVersion() method format change
