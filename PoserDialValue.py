@@ -86,10 +86,11 @@
 #					Fix LogValueOperations() which also incorrectly uses a 1 base GetKey() index.
 # v2.0	20201103	Replace print statement with function for Python 3 compatibility in Poser 12.
 #					Python3 raise only takes a single Exception instance or class with explicit parameters.
+# v2.1	20210907	Implement logging, save and restore of valueOperations including strength parameter and new indents.
 ########################################################################################################################
 from __future__ import print_function
 
-poserDialValueVersion = "2.0"
+poserDialValueVersion = "2.1"
 POSER_DIALVALUE_VERSION = "POSERDIALVALUE_VERSION"
 debug = False
 remove = True
@@ -178,12 +179,13 @@ def ListValueOperations(theParm):
 			else:
 				srcParm = theValOp.SourceParameter()
 				if srcParm:
-					print( "{}{}\n{}{}\n{}{}\n{}{}".format( indent*2, valOpTypeNames[ theValOp.Type() ], \
+					print( "{}{}\n{}{}\n{}{}\n{}{}\n{}strength {:0.6f}".format( indent*2, valOpTypeNames[ theValOp.Type() ], \
 									indent*3, FigureName( theValOp.SourceParameter().Actor().ItsFigure() ), \
 									indent*3, theValOp.SourceParameter().Actor().InternalName(), \
-									indent*3, theValOp.SourceParameter().InternalName() ) )
+									indent*3, theValOp.SourceParameter().InternalName(), \
+									indent*3, theValOp.Strength() ) )
 					if theValOp.Type() == poser.kValueOpTypeCodeDELTAADD:
-						print( "{}deltaAddDelta {:0.6f}".format( indent*2, theValOp.Delta() ) )
+						print( "{}deltaAddDelta {:0.6f}".format( indent*3, theValOp.Delta() ) )
 					elif theValOp.Type() == poser.kValueOpTypeCodeKEY:
 						print( "{}beginValueKeys".format( indent*3 ) )
 						#for theKeyIndex in range(1, theValOp.NumKeys() + 1): # Complete BS! index should be 0 based.
@@ -213,12 +215,13 @@ def LogValueOperations(logFile, theParm):
 			else:
 				srcParm = theValOp.SourceParameter()
 				if srcParm:
-					logFile.write( "{}{}\n{}{}\n{}{}\n{}{}\n".format( indent*2, valOpTypeNames[ theValOp.Type() ], \
+					logFile.write( "{}{}\n{}{}\n{}{}\n{}{}\n{}strength {:0.6f}\n".format( indent*2, valOpTypeNames[ theValOp.Type() ], \
 									indent*3, FigureName( theValOp.SourceParameter().Actor().ItsFigure() ), \
 									indent*3, theValOp.SourceParameter().Actor().InternalName(), \
-									indent*3, theValOp.SourceParameter().InternalName() ) )
+									indent*3, theValOp.SourceParameter().InternalName(), \
+									indent*3, theValOp.Strength() ) )
 					if theValOp.Type() == poser.kValueOpTypeCodeDELTAADD:
-						logFile.write( "{}deltaAddDelta {:0.6f}\n".format( indent*2, theValOp.Delta() ) )
+						logFile.write( "{}deltaAddDelta {:0.6f}\n".format( indent*3, theValOp.Delta() ) )
 					elif theValOp.Type() == poser.kValueOpTypeCodeKEY:
 						logFile.write( "{}beginValueKeys\n".format( indent*3 ) )
 						#for theKeyIndex in range(1, theValOp.NumKeys() + 1): # Utter garbage! Use 0 based index
@@ -274,6 +277,7 @@ def RestoreValueOperations( theParm, theValOps ):
 					print( "{}Existing Python CallBack ignored.".format( indent*1 ) )
 			else:
 				newValOp = theParm.AddValueOperation( theValOp.Type(), theValOp.SourceParameter() )
+				newValOp.SetStrength( theValOp.Strength() )
 				if theValOp.Type() == poser.kValueOpTypeCodeDELTAADD:
 					newValOp.SetDelta( theValOp.Delta() )
 				elif theValOp.Type() == poser.kValueOpTypeCodeKEY:

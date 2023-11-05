@@ -24,10 +24,12 @@
 # v2.1	20210514	Add Windows support for Poser Preferences file name not included in poser.PrefsLocation().
 #					Add LIB_ITEMS_SERVER_SORT preference key.
 #					Replace simple string double-quote delimiters with single-quote delimiters.
+# v3.0	20231005	Add a json attribute to Preferences instances, containing a list of preference keys which contain
+#					JSON encoded strings, to prevent internal double-quote removal during loading.
 ########################################################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = '2.1'
+poserPrefsVersion = '3.0'
 debug = False
 
 POSER_PREFS_VERSION = 'POSERPREFS_VERSION'
@@ -77,6 +79,7 @@ class Preferences:
 		preferences		: An OrderedDict of preference keys and values. Initialise the keys before calling Load()
 						: Preference keys always saved are POSERPREFS_VERSION and POSER_VERSION
 						: Preference key LAST_OPEN_SAVE_PATH will be sought in Poser Prefs file if not found
+		json			: A list (initially empty) of keys whose values are JSON encoded.
 		"""
 		# Determine preference file location (Previously initialised invalidly as an empty list)
 		try:
@@ -91,6 +94,7 @@ class Preferences:
 		self.preferences = collections.OrderedDict( [ \
 										( POSER_PREFS_VERSION, poserPrefsVersion ), \
 										( POSER_VERSION, VERSION_FORMAT.format( float ( poser.Version() ) ) ) ] )
+		self.json = []
 	
 	def UseDefaultLibrary(self, preferenceKey):
 		"""
@@ -254,10 +258,13 @@ class Preferences:
 					part = line.split() # Space delimited
 					if loadExtra or part[0] in initialKeys:
 						prefValue = ' '.join(part[1:]) # First split part is key, the rest is value
-						try: # Python 2.7 syntax includes delete, but will fail in Python 3
-							self.preferences[ part[0] ] = prefValue.translate(trans, '"')
-						except: # Python 3 syntax
-							self.preferences[ part[0] ] = prefValue.translate(trans)
+						if part[0] in self.json: # Prevent all string translation to preserve JSON encoding
+							self.preferences[part[0]] = prefValue
+						else:
+							try: # Python 2.7 syntax includes delete, but will fail in Python 3
+								self.preferences[ part[0] ] = prefValue.translate(trans, '"')
+							except: # Python 3 syntax
+								self.preferences[ part[0] ] = prefValue.translate(trans)
 			self.file.close()
 			
 #"""
