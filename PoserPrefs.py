@@ -1,5 +1,5 @@
 # PoserPrefs.py
-# (c) 2014-2021 an0malaus (Geoff Hicks/GeoffIX)
+# (c) 2014-2023 an0malaus (Geoff Hicks/GeoffIX)
 #
 # This module provides standard handling for Poser Python Script preference files
 # If a specified preference file does not exist at the normal location of Poser's own preferences,
@@ -26,10 +26,11 @@
 #					Replace simple string double-quote delimiters with single-quote delimiters.
 # v3.0	20231005	Add a json attribute to Preferences instances, containing a list of preference keys which contain
 #					JSON encoded strings, to prevent internal double-quote removal during loading.
+#		20231106	Update copyright dates.
 ########################################################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = '3.0'
+poserPrefsVersion = '3.0.1'
 debug = False
 
 POSER_PREFS_VERSION = 'POSERPREFS_VERSION'
