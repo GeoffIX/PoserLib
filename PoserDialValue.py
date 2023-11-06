@@ -87,10 +87,12 @@
 # v2.0	20201103	Replace print statement with function for Python 3 compatibility in Poser 12.
 #					Python3 raise only takes a single Exception instance or class with explicit parameters.
 # v2.1	20210907	Implement logging, save and restore of valueOperations including strength parameter and new indents.
+# v2.2	20231107	Add __version__ global for requirements comparisons.
 ########################################################################################################################
 from __future__ import print_function
 
-poserDialValueVersion = "2.1"
+__version__ = '2.2'
+poserDialValueVersion = __version__
 POSER_DIALVALUE_VERSION = "POSERDIALVALUE_VERSION"
 debug = False
 remove = True

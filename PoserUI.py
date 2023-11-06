@@ -62,10 +62,12 @@
 #					measurementPolyLine.
 #		20230818	Add support for scene object types controlHandleProp, curveProp, waveDeformerProp & coneForceFieldProp.
 #		20230819	Add support for scene object type uniformForceFieldProp.
+# v2.4	20231107	Add __version__ global for requirements comparisons.
 ########################################################################################################################
 from __future__ import print_function
 
-PoserUserInterfaceVersion = '2.3.2'
+__version__ = '2.4.0'
+PoserUserInterfaceVersion = __version__
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
 

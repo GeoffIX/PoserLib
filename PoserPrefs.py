@@ -27,10 +27,12 @@
 # v3.0	20231005	Add a json attribute to Preferences instances, containing a list of preference keys which contain
 #					JSON encoded strings, to prevent internal double-quote removal during loading.
 #		20231106	Update copyright dates.
+# v3.1	20231107	Add __version__ global for requirements comparisons.
 ########################################################################################################################
 from __future__ import print_function
 
-poserPrefsVersion = '3.0.1'
+__version__ = '3.1.0'
+poserPrefsVersion = __version__
 debug = False
 
 POSER_PREFS_VERSION = 'POSERPREFS_VERSION'
