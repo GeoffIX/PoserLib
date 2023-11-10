@@ -63,10 +63,11 @@
 #		20230818	Add support for scene object types controlHandleProp, curveProp, waveDeformerProp & coneForceFieldProp.
 #		20230819	Add support for scene object type uniformForceFieldProp.
 # v2.4	20231107	Add __version__ global for requirements comparisons.
+# v2.5	20231110	Add support for 'Expression' CustomData.
 ########################################################################################################################
 from __future__ import print_function
 
-__version__ = '2.4.0'
+__version__ = '2.5.0'
 PoserUserInterfaceVersion = __version__
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
@@ -286,6 +287,7 @@ CustomDataLocationKey = 'Location' # customData value for this key may contain p
 CustomDataMultiPoseKey = 'MultiPose' # customData value for this key may contain path information as well
 CustomDataPoseNameKey = 'PoseName' # customData value for this key may contain path information as well
 CustomDataPoseNameFrameFmt = '{}{}{:g}' # Use CustomDataPoseNameKey, CustomDataFrameDelimiter and frame number
+CustomDataExpressionKey = 'Expression' # customData value for this key may contain path information as well
 Custom = namedtuple( 'Custom', [ 'storeWithPoses', 'storeWithMaterials', 'value' ] ) # customData attributes
 compressedSuffixes = ( '.cmz', '.fcz', '.crz', '.hrz', '.hdz', '.ltz', '.p2z', '.ppz', '.pzz' ) # Alpha order of method name
 uncompressedSuffixes = ( '.cm2', '.fc2', '.cr2', '.hr2', '.hd2', '.lt2', '.pz2', '.pp2', '.pz3' ) # Alpha order of method name
@@ -722,6 +724,18 @@ def GetFrameKey( keyName=None, theFrame=None ):
 		theFrame = poser.Scene().Frame()
 	return CustomDataFrameFmt.format( keyName, CustomDataFrameDelimiter, theFrame )
 
+def GetExpressionFrameKey( theFrame=None ):
+	"""
+	Return the customData 'Expression#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'Expression#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+	global CustomDataExpressionKey
+	
+	return GetFrameKey( CustomDataExpressionKey, theFrame )
+
 def GetLocationFrameKey( theFrame=None ):
 	"""
 	Return the customData 'Location#nn' key matching the specified frame.
@@ -812,6 +826,28 @@ def GetFrameCustomData( theFigure=None, theActor=None, keyName=None, theFrame=No
 	elif useActor: # No actor PoseName customData, so try falling back to theFigure
 		customData, keyFound = GetFrameCustomData( theFigure, theActor, keyName, theFrame, useLast, baseOnly, stripExt, False )
 	return customData, keyFound
+
+def GetCustomDataExpression( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'Expression#nn' keys matching the specified frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'Expression' if 'Expression#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'PoseName' is to be returned
+	theFrame	The frame component of the 'Expression#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'Expression' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename (Ignored)
+	stripExt	Remove the '.pz2' or other extension if True (Ignored)
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+	global CustomDataExpressionKey
+	
+	# NOTE: Expression value is not a string, so baseOnly and stripExt parameters are ignored
+	return GetFrameCustomData( theFigure, theActor, CustomDataExpressionKey, theFrame, useLast, False, False, useActor )
 
 def GetCustomDataLocation( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
 																			stripExt=False, useActor=False ):
@@ -951,7 +987,8 @@ def UpdateCustomData( theObject, theData ):
 	global CustomDataListKey
 	global CustomDataKeyDelimiter
 	global CustomDataFrameDelimiter
-	global customDataLocationKey
+	global CustomDataExpressionKey
+	global CustomDataLocationKey
 	global CustomDataPoseNameKey
 	global CustomDataPoseNameFrameFmt
 	
@@ -961,7 +998,7 @@ def UpdateCustomData( theObject, theData ):
 			if key not in keys: # Avoid duplicating existing keys
 				keys.append( key )
 			theObject.SetCustomData( key, data.value, data.storeWithPoses, data.storeWithMaterials )
-			if key in [ CustomDataLocationKey, CustomDataPoseNameKey ]: # Replicate this customData for the current frame
+			if key in [ CustomDataExpressionKey, CustomDataLocationKey, CustomDataPoseNameKey ]: # Replicate this customData for the current frame
 				framekey = CustomDataPoseNameFrameFmt.format( key, CustomDataFrameDelimiter, poser.Scene().Frame() )
 				if framekey not in keys:
 					keys.append( framekey )
