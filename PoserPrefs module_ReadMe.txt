@@ -6,8 +6,8 @@ then Poser's preference file will be examined for compatible information, e.g. L
 Note that methods will not allow Poser's own preferences to be overridden on save.
 
 PoserPrefs Constants:
-poserPrefsVersion, debug, POSER_PREFS_VERSION, POSER_VERSION, LAST_OPEN_SAVE_PATH, USE_COMPRESSION, POSER_PREFS, 
-GENERAL_FORMAT, PATH_FORMAT, VERSION_FORMAT, LIBRARY_PATH
+__version__, poserPrefsVersion, debug, POSER_PREFS_VERSION, POSER_VERSION, LAST_OPEN_SAVE_PATH, LIB_ITEMS_SERVER_SORT, 
+USE_COMPRESSION, POSER_PREFS, GENERAL_FORMAT, PATH_FORMAT, VERSION_FORMAT, LIBRARY_PATH
 
 PoserPrefs Methods:
 
@@ -28,6 +28,7 @@ class Preferences:
 		preferences		: An OrderedDict of preference keys and values. Initialise the keys before calling Load()
 						: Preference keys always saved are POSERPREFS_VERSION and POSER_VERSION
 						: Preference key LAST_OPEN_SAVE_PATH will be sought in Poser Prefs file if not found
+		json			: A list (initially empty) of keys whose values are JSON encoded.
 		"""
 		# Determine preference file location (Previously initialised invalidly as an empty list)
 	

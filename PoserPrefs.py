@@ -28,10 +28,11 @@
 #					JSON encoded strings, to prevent internal double-quote removal during loading.
 #		20231106	Update copyright dates.
 # v3.1	20231107	Add __version__ global for requirements comparisons.
+#		20231116	Use GENERAL_FORMAT for json encoded preferences, rather than enclosing in redundant double-quotes.
 ########################################################################################################################
 from __future__ import print_function
 
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 poserPrefsVersion = __version__
 debug = False
 
@@ -141,6 +142,7 @@ class Preferences:
 		overwriting any existing preferences. Take care to parse the loaded preferences and purge any unwanted
 		ones in case the entire poser preferences file was loaded in the absence of the specified file.
 		If self.name was omitted on initialisation, Save will do nothing to avoid overwriting Poser's prefs.
+		NOTE: string preferences, excluding JSON encoded prefs, will be enclosed in double-quotes.
 		"""
 		if self.name is None:
 			if debug:
@@ -148,14 +150,17 @@ class Preferences:
 		else:
 			self.file = open(os.path.join( self.path, self.name ), 'wt') # Overwrite existing preferences
 			for pref in self.preferences.keys():
-				if isinstance( self.preferences[ pref ], basestring ): # Double quote strings
+				if isinstance( self.preferences[ pref ], basestring ) and pref not in self.json: # Double quote strings
 					self.file.write( PATH_FORMAT.format( pref, self.preferences[ pref ] ) )
 					if debug:
 						print( 'string preference {} : {}'.format( pref, self.preferences[ pref ] ) )
-				else:
+				else: # JSON or non-string preferences
 					self.file.write( GENERAL_FORMAT.format( pref, self.preferences[ pref ] ) )
 					if debug:
-						print( 'general preference {} : {}'.format( pref, self.preferences[ pref ] ) )
+						if pref in self.json:
+							print( 'JSON preference {} : {}'.format( pref, self.preferences[ pref ] ) )
+						else:
+							print( 'general preference {} : {}'.format( pref, self.preferences[ pref ] ) )
 			self.file.close()
 	
 	def LegacyPrefsLocation():

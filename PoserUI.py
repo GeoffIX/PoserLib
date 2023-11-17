@@ -347,7 +347,7 @@ def TestMethods( theParm=None ):
 	This method determines whether Poser Python supports the IsControlProp actor method.
 	This method determines whether Poser Python supports the AllCustomData actor method.
 	This method determines whether Poser Python supports the Name animSet method.
-	This method determines whether Poser Python supports the GetTypId actor method.
+	This method determines whether Poser Python supports the GetIdType actor method.
 	
 	theParm:	An optionally supplied parameter to use for the method existence test
 	"""

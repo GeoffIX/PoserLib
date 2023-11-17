@@ -33,8 +33,12 @@ AnimSetExtensionAttr (Attribute name for identifying file extension required by 
 CustomDataKeyDelimiter (Character used to delimit list of CustomData keys that have been defined, but not exposed)
 CustomDataListKey (Key string for CustomData containing list of other customData keys used)
 CustomDataFrameDelimiter (Character used to delimit frame number suffix from CustomData base key)
+CustomDataFrameFmt (format string for composing KeyName, frame delimiter and frame number)
+CustomDataLocationKey (Base Key string possibly suffixed with frame number to associate location data with frame)
+CustomDataMultiPoseKey (Base Key string possibly suffixed with frame number to associate MultiPose file name with frame)
 CustomDataPoseNameKey (Base Key string possibly suffixed with frame number to associate pose file name with frame)
 CustomDataPoseNameFrameFmt (Format string to create properly constructed customData key and frame number combination)
+CustomDataExpressionKey (Base Key string possibly suffixed with frame number to associate expression file name with frame)
 Custom (namedtuple to simplify assignment of customData status flags)
 compressedSuffixes (tuple of compressed file extension strings known to poser)
 uncompressedSuffixes (tuple of uncompressed file extension strings known to poser)
@@ -50,6 +54,9 @@ def TestMethods( theParm=None ):
 	"""
 	This method determines whether Poser Python supports the HasKeyAtFrame parameter method.
 	This method determines whether Poser Python supports the IsControlProp actor method.
+	This method determines whether Poser Python supports the AllCustomData actor method.
+	This method determines whether Poser Python supports the Name animSet method.
+	This method determines whether Poser Python supports the GetIdType actor method.
 	
 	theParm:	An optionally supplied parameter to use for the method existence test
 	"""
@@ -59,6 +66,8 @@ def ActorTypeName( theActor ):
 	Return the actor type string which precedes the actor name in poser files.
 	NOTE: Fallback detection methods for controlProp and groupingObject prop actors are used for environments where
 	NOTE: specific identification methods have not been exposed to poser python as per version 11.0.6.33735
+	NOTE: The four measurement prop types are indistinguishable using legacy methods, 
+	NOTE: so they are ignored if GetIdType() is unavailable.
 	
 	theActor	: the actor whose type string is to be returned.
 	"""
@@ -169,6 +178,7 @@ def GetAnimSetNames():
 	Return a list of names of animSets in the poser scene. AnimSet Names are not yet exposed to Python in 11.0.6.33735
 	Names will either consist of the value of the 'Name' attribute of the animSet or the animSets() list index in the
 	form 'AnimSet {}'.format(index)
+	AnimSet names are now exposed in Poser 12.0.735, so that method is used if available.
 	"""
 
 def GetAnimSetAttribute( theAnimSetName, theAttribute ):
@@ -189,6 +199,43 @@ def GetAnimSetActorParms( theAnimSetName ):
 	NOTE: be indexed by figure and actor, rather than just actor, so saving schemes can wrap the parameters.
 	"""
 
+def GetFrameKey( keyName=None, theFrame=None ):
+	"""
+	Return the customData 'keyName#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	If no keyName is specified, nothing will precede the frame delimiter.
+	
+	theFrame	The integer frame component of the 'keyName#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+
+def GetExpressionFrameKey( theFrame=None ):
+	"""
+	Return the customData 'Expression#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'Expression#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+
+def GetLocationFrameKey( theFrame=None ):
+	"""
+	Return the customData 'Location#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'Location#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+
+def GetMultiPoseFrameKey( theFrame=None ):
+	"""
+	Return the customData 'MultiPose#nn' key matching the specified frame.
+	If no frame is specified, use the current scene frame.
+	
+	theFrame	The integer frame component of the 'MultiPose#nn' customData key to be returned. If None, default to
+				the current scene frame
+	"""
+
 def GetPoseNameFrameKey( theFrame=None ):
 	"""
 	Return the customData 'PoseName#nn' key matching the specified frame.
@@ -196,6 +243,78 @@ def GetPoseNameFrameKey( theFrame=None ):
 	
 	theFrame	The integer frame component of the 'PoseName#nn' customData key to be returned. If None, default to
 				the current scene frame
+	"""
+
+def GetFrameCustomData( theFigure=None, theActor=None, keyName=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'keyName#nn' keys matching the specified keyName and frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'keyName' if 'keyName#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'keyName' is to be returned
+	theFrame	The frame component of the 'keyName#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'keyName' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename
+	stripExt	Remove the '.pz2' or other extension if True
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+
+def GetCustomDataExpression( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'Expression#nn' keys matching the specified frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'Expression' if 'Expression#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'PoseName' is to be returned
+	theFrame	The frame component of the 'Expression#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'Expression' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename (Ignored)
+	stripExt	Remove the '.pz2' or other extension if True (Ignored)
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+
+def GetCustomDataLocation( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'Location#nn' keys matching the specified frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'Location' if 'Location#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'PoseName' is to be returned
+	theFrame	The frame component of the 'Location#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'Location' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename (Ignored)
+	stripExt	Remove the '.pz2' or other extension if True (Ignored)
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
+	"""
+
+def GetCustomDataMultiPose( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
+																			stripExt=False, useActor=False ):
+	"""
+	Check theFigure or theActor for customData 'MultiPose#nn' keys matching the specified frame.
+	If both theFigure and theActor are None, default to the currently selected scene actor.
+	If useLast is set, return the customData 'MultiPose' if 'MultiPose#nn' is absent for that frame.
+	Return the customData value (or None if not found) and which key was located.
+	
+	theFigure	The figure, if any selected for saving
+	theActor	In the absence of a selected figure, the actor whose customData 'MultiPose' is to be returned
+	theFrame	The frame component of the 'MultiPose#nn' customData key being searched for. If None, default to 
+				the current scene frame
+	useLast		Allows the 'MultiPose' customData to be returned if frame specific version is absent
+	baseOnly	Remove the path component and return only the basename
+	stripExt	Remove the '.pz2' or other extension if True
+	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
 	"""
 
 def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast=False, baseOnly=False, \
@@ -216,20 +335,6 @@ def GetCustomDataPoseName( theFigure=None, theActor=None, theFrame=None, useLast
 	useActor	If theFigure is not None, try theActor before falling back to theFigure. (Single recursion)	
 	"""
 
-def StringSplitByNumbers(x):
-	"""
-	Regular expression sort key for numeric order sorting of digit sequences in alphanumeric strings
-	Credit: Matt Connolly (http://code.activestate.com/recipes/users/4177092/)
-	"""
-
-def ListAllCustomData( theObject=None ):
-	"""
-	Print a list of all customData for theObject, or the entire scene, with frame references numerically sorted
-	Excludes the CustomDataListKey itself, which is only there to provide missing customData lookup functionality
-	
-	theObject:	figure or actor type scene object. If None, report customData for the entire scene
-	"""
-
 def GetCustomDataKeys( theObject ):
 	"""
 	Given theObject, which may refer to either a figure or an actor, return a list of keys for which customData exists.
@@ -240,7 +345,7 @@ def GetCustomDataKeys( theObject ):
 def SetCustomDataKeys( theObject, keys ):
 	"""
 	Given theObject, which may refer to either a figure or an actor, set the CustomDataListKey customData to the 
-	concatenated, delimited list of keys specified.
+	concatenated, delimited list of keys specified. This is redundant if the AllCustomData() method is available.
 	
 	theObject	the entity (figure or actor) whose list of customData keys is to be set.
 	keys		the list of keys to be concatenated and delimited then saved to CustomDataListKey.
@@ -269,6 +374,28 @@ def UpdateCustomData( theObject, theData ):
 	theData		an OrderedDict() containing customData key, value pairs to be updated for the object.
 				NOTE: Each value is a Custom namedtuple of the format ( storeWithPoses, storeWithMaterials, string )
 	"""	
+
+def StringSplitByNumbers(x):
+	"""
+	Regular expression sort key for numeric order sorting of digit sequences in alphanumeric strings
+	Credit: Matt Connolly (http://code.activestate.com/recipes/users/4177092/)
+	"""
+
+def ListCustomData( theObject ):
+	"""
+	Print a list of all customData for theObject, with frame references numerically sorted
+	Excludes the CustomDataListKey itself, which is only there to provide missing customData lookup functionality
+	
+	theObject:	figure or actor type scene object. If None, report customData for the entire scene
+	"""
+
+def ListAllCustomData( theObject=None ):
+	"""
+	Print a list of all customData for theObject, or the entire scene, with frame references numerically sorted
+	Excludes the CustomDataListKey itself, which is only there to provide missing customData lookup functionality
+	
+	theObject:	figure or actor type scene object. If None, report customData for the entire scene
+	"""
 
 def poser.AppVersion():
 	"""
