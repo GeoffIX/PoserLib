@@ -1,5 +1,5 @@
 # PoserUI.py
-# (c) 2014-2023 GeoffIX (Geoff Hicks)
+# (c) 2014-2024 GeoffIX (Geoff Hicks)
 # 
 # This module implements Poser User Interface features currently missing from PoserPython.
 #
@@ -64,10 +64,11 @@
 #		20230819	Add support for scene object type uniformForceFieldProp.
 # v2.4	20231107	Add __version__ global for requirements comparisons.
 # v2.5	20231110	Add support for 'Expression' CustomData.
+# v2.6	20240107	Create CustomDataPathKeys list containing all CustomData<type>Keys containing path information.
 ########################################################################################################################
 from __future__ import print_function
 
-__version__ = '2.5.0'
+__version__ = '2.6.0'
 PoserUserInterfaceVersion = __version__
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
@@ -288,6 +289,7 @@ CustomDataMultiPoseKey = 'MultiPose' # customData value for this key may contain
 CustomDataPoseNameKey = 'PoseName' # customData value for this key may contain path information as well
 CustomDataPoseNameFrameFmt = '{}{}{:g}' # Use CustomDataPoseNameKey, CustomDataFrameDelimiter and frame number
 CustomDataExpressionKey = 'Expression' # customData value for this key may contain path information as well
+CustomDataPathKeys = [CustomDataPoseNameKey, CustomDataMultiPoseKey, CustomDataLocationKey, CustomDataExpressionKey]
 Custom = namedtuple( 'Custom', [ 'storeWithPoses', 'storeWithMaterials', 'value' ] ) # customData attributes
 compressedSuffixes = ( '.cmz', '.fcz', '.crz', '.hrz', '.hdz', '.ltz', '.p2z', '.ppz', '.pzz' ) # Alpha order of method name
 uncompressedSuffixes = ( '.cm2', '.fc2', '.cr2', '.hr2', '.hd2', '.lt2', '.pz2', '.pp2', '.pz3' ) # Alpha order of method name
