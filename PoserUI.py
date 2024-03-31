@@ -69,10 +69,14 @@
 #		20240318	Add CustomDataAnimSetKeys list containing CustomDataFigureAnimSetKey and CustomDataClothAnimSetKey.
 # v2.8	20240401	Improve TestMethods() robustness on Poser launch in case poser.Scene().Actors() does not yet
 #					include a valid poser object for the UNIVERSE actor.
+#		20240401	Completely ignore poser.Scene().Actors() poser.error due to early execution by PythonRC importing
+#					this module prior to full Poser scene initialisation being completed.
+#					NOTE: Despite PoserLib being located in Runtime:Python:addons, it is not yet configured as an addon
+#					so doesn't receive events from Poser indicating scene initialisation.
 ########################################################################################################################
 from __future__ import print_function
 
-__version__ = '2.8.0'
+__version__ = '2.8.1'
 PoserUserInterfaceVersion = __version__
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
@@ -385,7 +389,8 @@ def TestMethods( theParm=None ):
 				else: # We had some other problem, so Crash and burn - major problems with the environment
 					raise Exception( 'Actor "{}" has no parameters!'.format( actor.InternalName() ) )
 		except poser.error as e:
-			raise Exception( f'Scene initialisation incomplete! ({len(scene.Actors())})') from e
+			return # Ignore completely and try again later.
+			#raise Exception( f'Scene initialisation incomplete! ({len(scene.Actors())})') from e
 	else:
 		parm = theParm
 		actor = theParm.Actor() # We need an actor for the IsControlProp method test
