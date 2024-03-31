@@ -67,10 +67,12 @@
 # v2.6	20240107	Create CustomDataPathKeys list containing all CustomData<type>Keys containing path information.
 # v2.7	20240316	Add support for 'Clothing' CustomData.
 #		20240318	Add CustomDataAnimSetKeys list containing CustomDataFigureAnimSetKey and CustomDataClothAnimSetKey.
+# v2.8	20240401	Improve TestMethods() robustness on Poser launch in case poser.Scene().Actors() does not yet
+#					include a valid poser object for the UNIVERSE actor.
 ########################################################################################################################
 from __future__ import print_function
 
-__version__ = '2.7.1'
+__version__ = '2.8.0'
 PoserUserInterfaceVersion = __version__
 POSER_USERINTERFACE_VERSION = 'POSERUSERINTERFACE_VERSION'
 debug = False
@@ -371,16 +373,19 @@ def TestMethods( theParm=None ):
 	RemoveAnimSet = False
 	if theParm is None:
 		scene = poser.Scene()
-		actor = scene.Actors()[ 0 ] # Scene should always have at least UNIVERSE actor
-		parm = None
-		try: # Previously assumed UNIVERSE actor always had parameters
-			parm = actor.Parameters()[ 0 ] # assume UNIVERSE actor always has parameters
-		except: # Let's create a parameter to test on
-			if parm is None: 
-				parm = actor.CreateValueParameter( TestParmName )
-				RemoveTestParm = True
-			else: # We had some other problem, so Crash and burn - major problems with the environment
-				raise Exception( 'Actor "{}" has no parameters!'.format( actor.InternalName() ) )
+		try: # Catch poser.error in case Poser Scene initialisation incomplete.
+			actor = scene.Actors()[ 0 ] # Scene should always have at least UNIVERSE actor
+			parm = None
+			try: # Previously assumed UNIVERSE actor always had parameters
+				parm = actor.Parameters()[ 0 ] # assume UNIVERSE actor always has parameters
+			except: # Let's create a parameter to test on
+				if parm is None: 
+					parm = actor.CreateValueParameter( TestParmName )
+					RemoveTestParm = True
+				else: # We had some other problem, so Crash and burn - major problems with the environment
+					raise Exception( 'Actor "{}" has no parameters!'.format( actor.InternalName() ) )
+		except poser.error as e:
+			raise Exception( f'Scene initialisation incomplete! ({len(scene.Actors())})') from e
 	else:
 		parm = theParm
 		actor = theParm.Actor() # We need an actor for the IsControlProp method test
